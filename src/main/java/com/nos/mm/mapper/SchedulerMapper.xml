@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.SchedulerMapper">
+<select id="selectSendEmail" resultType="hashmap">
+	SELECT C.CLIENT_NAME
+         , MEM.MEM_ID || MEMM.MEM_ID EMAIL
+         , MEM.MEM_NAME || MEMM.MEM_NAME NAME
+         , TO_CHAR(TO_DATE(M.MN_START_DATE, 'YYYY-MM-DD HH24:MI:SS'),'HH24"시 "MI"분"') AS TIME 
+  	FROM MAINTENANCE M
+		LEFT JOIN JOIN J
+		ON M.MN_GROUP_NO = J.MN_GROUP_NO  
+		LEFT JOIN CLIENT C
+		ON C.CLIENT_NO = M.CLIENT_NO
+		LEFT JOIN MEMBER MEM
+	    ON M.MEM_NO = MEM.MEM_NO
+	    LEFT JOIN MEMBER MEMM
+	    ON J.MEM_NO = MEMM.MEM_NO
+    WHERE M.MN_START_DATE LIKE TO_CHAR(SYSDATE,'YYYY-MM-DD') || '%'
+
+</select>
+	
+</mapper>

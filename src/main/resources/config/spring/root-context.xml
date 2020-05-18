@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 스프링 컨테이너가 사용할 환경설정을 갖고 있는 xml파의 루트 엘리먼트 -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:p="http://www.springframework.org/schema/p" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans   
+		  				    http://www.springframework.org/schema/beans/spring-beans.xsd
+						    http://www.springframework.org/schema/tx
+   					        http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+   					        http://www.springframework.org/schema/aop 
+   					        http://www.springframework.org/schema/aop/spring-aop.xsd
+   					        http://www.springframework.org/schema/task 
+   					        http://www.springframework.org/schema/task/spring-task-3.1.xsd
+   					        http://www.springframework.org/schema/batch 
+   					        http://www.springframework.org/schema/batch/spring-batch.xsd
+						    http://www.springframework.org/schema/context   
+						    http://www.springframework.org/schema/context/spring-context.xsd">
+
+	<!-- 어노테이션 설정 읽기 -->
+	<!-- 해당 패키지에서 @Controll 어노테이션 빼고 나머지를 읽어서 빈 생성 -->
+	<context:component-scan base-package="com.nos.mm">
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+
+	<!-- Spring message -->
+	<!-- 다국어 처리 -->
+	<!-- MessageSource와 이 MessageSource를 사용하는 MessageSourceAccessor를 설정한 후 Message에 
+		DI하는 내용 -->
+	<!-- ResourceBundleMessageSource 부분이 바로 위에서 저장된 messages파일들을 읽어오는 부분 -->
+	<bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+		<property name="basenames">
+			<list>
+				<value>classpath:config/messages/message</value>
+			</list>
+		</property>
+		<property name="defaultEncoding" value="UTF-8"></property>
+		<property name="cacheSeconds" value="5"></property>
+	</bean>
+
+	<bean id="messageSourceAccessor" class="org.springframework.context.support.MessageSourceAccessor">
+		<constructor-arg ref="messageSource" />
+	</bean>
+
+	<!-- <bean id = "message" class = "com.nos.crm.core.util.PropMsg"> <property 
+		name="messageSourceAccessor" ref="messageSourceAccessor"/> </bean> -->
+
+	<!-- Map으로 리턴한 것을 json으로 자동으로 바꿔주는 것이라고 함 -->
+	<!-- ModelAndView를 json으로 변환 -->
+	<bean id="jsonView"
+		class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
+		<property name="contentType" value="application/json;charset=UTF-8">
+		</property>
+	</bean>
+
+	<!-- <bean id="beanNameResolver" class="org.springframework.web.servlet.view.BeanNameViewResolver"> 
+		<property name="order" value="0"/> </bean> -->
+	<!-- Spring message 끝 -->
+
+	<!-- mail.properties 읽어옴 -->
+	<context:property-placeholder
+		location="classpath:config/util/mail.properties, classpath:config/mybatis/db.properties" />
+
+	<!-- 메일 보내기 (Gmail) -->
+	<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+		<property name="host" value="smtp.gmail.com" />
+		<property name="port" value="587" />
+		<property name="defaultEncoding" value="utf-8" />
+		<property name="username" value="${mail.send.id}" />
+		<property name="password" value="${mail.send.pw}" />
+
+		<property name="javaMailProperties">
+			<props>
+				<prop key="mail.smtp.starttls.enable">true</prop>
+				<prop key="mail.smtp.auth">true</prop>
+			</props>
+		</property>
+	</bean>
+	
+	<!-- 스케쥴러파일이 존재하는 패키지 설정 --> 
+<!-- 	<context:component-scan base-package="com.nos.mm.util.scheduler" />  -->
+	<!-- 해당 태그들은 크론탭을 설정에 필요한 태그들 --> 
+	<task:scheduler id="jobScheduler" pool-size="10" />
+	<task:annotation-driven scheduler="jobScheduler" />
+
+
+
+
+
+</beans>

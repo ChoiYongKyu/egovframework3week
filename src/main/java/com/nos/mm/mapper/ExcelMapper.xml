@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.ExcelMapper">
+
+
+	<select id="getList" resultType="map">
+		SELECT
+		    MN_NO,
+		    MN_SUP_ITEM,
+		    MN_REFERENCE,
+		    MN_REQ_DATE,
+		    MN_START_DATE,
+		    MN_END_DATE,
+		    MN_SUP_DAYS,
+		    MN_DEL_YN,
+		    MEM_NO,
+		    CLIENT_NO,
+		    MN_GROUP_NO,
+		    PARENT_NO,
+		    WRITE_DATE,
+		    MN_DONE,
+		    SUPPORT_NO,
+		    WORK_SCOPE_NO
+		FROM MAINTENANCE
+		ORDER BY MN_NO
+	
+	</select>
+
+	<select id="getClient" resultType="map">
+		SELECT CLIENT_NO
+			 , CLIENT_NAME
+		FROM CLIENT
+		ORDER BY CLIENT_NO
+	</select>
+	
+	<select id="getRequestor" parameterType="int" resultType="map">
+		SELECT REQ_NO
+			 , REQ_NAME
+		FROM REQUESTOR
+		WHERE CLIENT_NO = #{client_no }
+	</select>
+	
+	<select id="getWorkScope" parameterType="int" resultType="map">
+		SELECT WS.WORK_SCOPE_NO
+			 , WS.WORK_SCOPE_NAME
+		FROM WORK W
+		LEFT JOIN WORK_SCOPE WS
+		ON W.WORK_SCOPE_NO = WS.WORK_SCOPE_NO
+		WHERE CLIENT_NO = #{client_no }
+	</select>
+	
+	<select id="getAllSup" resultType="map">
+		SELECT SUPPORT_NO
+			 , SUPPORT_NAME
+		FROM SUPPORT
+	</select>
+	
+	<select id="getAllWS" resultType="map">
+		SELECT WORK_SCOPE_NO
+			 , WORK_SCOPE_NAME
+		FROM WORK_SCOPE
+	</select>
+	
+	<select id="getAllReq" resultType="map">
+		SELECT REQ_NO
+			 , REQ_NAME
+		FROM REQUESTOR
+	</select>
+	
+	<select id="getMem_no" parameterType="string" resultType="int">
+		SELECT MEM_NO
+		FROM MEMBER
+		WHERE MEM_NAME = #{mem_name }
+	</select>
+	
+	<insert id="addMN" parameterType="map">
+		INSERT INTO MAINTENANCE (
+								 MN_NO
+							   , MN_SUP_ITEM
+							   , MN_REFERENCE
+							   , MN_REQ_DATE
+							   , MN_START_DATE
+							   , MN_END_DATE
+							   , MN_SUP_DAYS
+							   , MN_DEL_YN
+							   , MEM_NO
+							   , CLIENT_NO
+							   , SUPPORT_NO
+							   , WORK_SCOPE_NO
+							   , WRITE_DATE
+							   , PARENT_NO
+							   )
+    					VALUES(
+    						  mn_seq.nextval
+    						, #{mn_sup_item }
+    						, #{mn_reference }
+    						, #{mn_req_date }
+    						, #{mn_start_date }
+    						, #{mn_end_date }
+    						, #{mn_sup_days }
+    						, 1
+ 							, #{mem_no }
+    						, #{client_no } 
+    						, #{support_no }
+    						, #{work_scope_no }
+    						, SYSDATE
+    						, 0
+    						)
+    	<selectKey order="AFTER" keyProperty="mn_no" resultType="int">
+    		SELECT MN_SEQ.CURRVAL FROM DUAL
+    	</selectKey>
+	</insert>
+	
+	<insert id="addReq_manage" parameterType="object">
+		INSERT INTO REQ_MANAGEMENT(
+									RM_NO
+								  , REQ_NO
+								  , MN_NO
+								  )
+							VALUES(
+									RM_SEQ.nextval
+								  , #{param2 }
+								  , #{param1 }
+							)
+	</insert>
+	
+	<insert id="addUpload" parameterType="map">
+		INSERT INTO UPLOAD(
+								UPLOAD_NO
+							  , UPLOAD_BEFORE
+							  , UPLOAD_AFTER
+							  , UPLOAD_CONNECT
+							  , UPLOAD_TABLE
+							)
+					VALUES(
+								up_seq.nextval
+							  , #{upload_before }
+							  , #{upload_after }
+							  , #{mn_no }
+							  , 'MAINTENANCE'
+							)
+	</insert>
+</mapper>

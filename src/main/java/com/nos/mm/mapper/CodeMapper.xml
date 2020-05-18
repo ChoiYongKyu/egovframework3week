@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.CodeMapper">
+	<select id="getCodeList" resultType="map">
+		SELECT COMMON_CODE_KEY
+			 , COMMON_CODE_VALUE
+		FROM COMMON_CODE
+		WHERE COMMON_CODE = 'COMMON'
+	</select>
+	
+	<select id="getResultList" parameterType="String" resultType="map">
+		SELECT COMMON_CODE
+			 , COMMON_CODE_KEY
+			 , COMMON_CODE_VALUE
+	    FROM COMMON_CODE
+	    WHERE COMMON_CODE = #{common_code }
+	</select>
+	
+	<delete id="deleteCode"> 
+		DELETE FROM COMMON_CODE
+		WHERE COMMON_CODE_KEY = #{param1} and COMMON_CODE = #{param2}
+	</delete>
+	
+	<insert id="addCode" parameterType="map">
+		INSERT INTO COMMON_CODE (COMMON_CODE
+		                       , COMMON_CODE_KEY
+		                       , COMMON_CODE_VALUE
+		                        )
+				VALUES (#{common_code}
+					 , (SELECT NVL(MAX(REGEXP_REPLACE(COMMON_CODE_KEY, '[^0-9]')), 0) 
+	             		FROM COMMON_CODE
+	             		WHERE COMMON_CODE = #{common_code}) + 1
+					 , #{textContent}
+				)
+	</insert>
+	
+	<insert id="insertCode" parameterType="map">
+		INSERT INTO COMMON_CODE (COMMON_CODE
+                       , COMMON_CODE_KEY
+                       , COMMON_CODE_VALUE
+                       )
+                  VALUES ('COMMON'
+                        , #{code_key }
+                        , #{code_value })
+	</insert>
+</mapper>

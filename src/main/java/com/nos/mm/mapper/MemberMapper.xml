@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.MemberMapper">
+	<select id="login" parameterType="string" resultType="membervo">
+		SELECT M.MEM_NO
+		      , M.MEM_ID
+		      , M.MEM_PW
+		      , M.MEM_NAME
+		      , M.MEM_TEL
+		      , M.MEM_ENC
+              , M.MEM_DEL_YN
+		      , M.AUTH_NO
+		      , M.MEM_DEPT
+		      , M.MEM_GRADE
+		FROM MEMBER M
+		WHERE MEM_ID = #{email }
+		AND MEM_DEL_YN = 1
+	</select>
+	
+    <select id="memberInfo" resultType="nosMap">
+        SELECT MEM_NO
+             , MEM_ID
+             , MEM_NAME
+             , MEM_TEL
+             , MEM_DEPT
+             , MEM_GRADE
+          FROM MEMBER
+         WHERE MEM_NO = #{mem_no}
+           AND MEM_DEL_YN = 1
+	</select>
+
+    <select id="memberList" resultType="nosMap">
+        SELECT MEM_NO
+             , MEM_NAME
+             , MEM_TEL
+             , MEM_DEPT
+             , MEM_GRADE
+          FROM MEMBER
+      ORDER BY MEM_NAME ASC
+    </select>
+
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="getAuth" parameterType="int" resultType="string">
+		SELECT COMMON_CODE_VALUE AS AUTH_NAME
+		FROM COMMON_CODE
+		WHERE COMMON_CODE_KEY = #{auth_no } AND COMMON_CODE = 'AUTH'
+	</select>
+	
+	<select id="emailDuplCheck" parameterType="string" resultType="string">
+		SELECT MEM_ID
+		FROM MEMBER
+		WHERE MEM_ID = #{email }
+		AND MEM_DEL_YN = 1
+	</select>
+	
+	<insert id="join" parameterType="membervo">
+		INSERT INTO MEMBER(
+                    MEM_NO
+                  , MEM_ID
+                  , MEM_PW
+                  , MEM_NAME
+                  , MEM_TEL
+                  , MEM_ENC
+             	  , MEM_DEL_YN
+                  , AUTH_NO
+                  )
+            VALUES(MEM_SEQ.NEXTVAL
+                , #{mem_id }
+                , #{mem_pw }
+                , #{mem_name }
+                , #{mem_tel }
+                , #{mem_enc }
+                , 1
+                , 3
+                )
+	</insert>
+	
+	<select id="findEmail" parameterType="membervo" resultType="string">
+		SELECT MEM_ID
+		FROM MEMBER
+		WHERE MEM_NAME = #{mem_name }
+		AND MEM_TEL = #{mem_tel }
+		AND MEM_DEL_YN = 1
+	</select>
+
+	<select id="findPW" parameterType="membervo" resultType="string">
+		SELECT MEM_ID
+		FROM MEMBER
+		WHERE MEM_NAME = #{mem_name }
+		AND MEM_TEL = #{mem_tel }
+		AND MEM_ID = #{mem_id }
+		AND MEM_DEL_YN = 1
+	</select>
+	
+	<select id="groupByMem_no" parameterType="int" resultType="map">
+		SELECT J.MN_GROUP_NO 
+   			  , M.MEM_NAME
+	          , G.MN_GROUP_NAME
+			FROM JOIN J
+			JOIN MEMBER M 
+	    ON J.MEM_NO = M.MEM_NO
+	    JOIN MN_GROUP G
+	    ON J.MN_GROUP_NO = G.MN_GROUP_NO
+	    WHERE J.MEM_NO = #{mem_no }
+	</select>
+	
+	<select id="memberByMn_group_no" parameterType="int" resultType="map">
+		SELECT M.MEM_NAME
+		FROM JOIN J
+		JOIN MEMBER M
+		ON J.MEM_NO = M.MEM_NO
+		WHERE MN_GROUP_NO = #{mn_group_no }
+	</select>
+	
+	<update id="modifyInfo" parameterType="membervo">
+		UPDATE MEMBER SET MEM_NAME = #{mem_name}
+		<if test="mem_tel != 'google user'.toString()">
+		                , MEM_PW = #{mem_pw}
+		                , MEM_TEL = #{mem_tel}
+		                , MEM_ENC = #{mem_enc}
+		</if>
+		                , MEM_DEPT = #{mem_dept}
+		                , MEM_GRADE = #{mem_grade}
+		WHERE MEM_NO = #{mem_no}
+	</update>
+	
+	<update id="modifyPW" parameterType="membervo">
+		UPDATE MEMBER SET MEM_PW = #{mem_pw }
+		                , MEM_ENC = #{mem_enc}
+		WHERE MEM_ID = #{mem_id }
+	</update>
+	
+	
+	<update id="receiveToken" parameterType="nosMap">
+		UPDATE MEMBER SET MEM_TOKEN = #{memToken }
+						, MEM_APPVER = #{memAppVer }
+		WHERE MEM_ID = #{memId }
+	</update>
+
+	<select id="getToken" resultType="string">
+		SELECT MEM_TOKEN
+		FROM MEMBER
+		WHERE MEM_ID = #{mem_id }
+	</select>
+
+</mapper>

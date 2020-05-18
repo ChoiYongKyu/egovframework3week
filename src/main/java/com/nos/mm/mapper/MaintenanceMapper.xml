@@ -1,0 +1,794 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.MaintenanceMapper">
+<resultMap type="map" id="clobinvert">
+	<result property="MN_SUP_ITEM" column="MN_SUP_ITEM" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="MN_REFERENCE" column="MN_REFERENCE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="ORIGINAL_MN_REFERENCE" column="ORIGINAL_MN_REFERENCE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="ORIGINAL_MN_SUP_ITEM" column="ORIGINAL_MN_SUP_ITEM" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="PJ_EXPLANATION" column="PJ_EXPLANATION" jdbcType="CLOB" javaType="java.lang.String" />
+</resultMap>
+	<select id="getList" parameterType="map" resultType="map">
+ 		SELECT * 
+ 		FROM(SELECT A.*
+ 				  , COUNT(*) OVER() COUNT
+ 				  , ROWNUM AS RNUM
+			FROM (SELECT 
+<!-- 			ROWNUM AS RNUM -->
+			 		    M.MN_NO
+			 		   , M.MN_DONE
+			 		   , TO_CHAR(M.WRITE_DATE, 'yyyy-mm-dd hh24:mi:ss') AS WRITE_DATE
+			 		   , CC.COMMON_CODE_VALUE AS MN_DONE_NAME
+       		 		   , CC.COMMON_CODE_KEY AS MN_DONE_NO
+					   , C.CLIENT_NAME
+					   , WS.WORK_SCOPE_NAME
+					   , MEM.MEM_NAME
+					   , M.PARENT_NO
+					   , TO_CHAR(TO_DATE(M.MN_START_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_START_DATE
+					   , TO_CHAR(TO_DATE(M.MN_END_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_END_DATE
+					   , MG.MN_GROUP_NAME
+					   , (SELECT COUNT(*) FROM MAINTENANCE WHERE M.MN_NO = PARENT_NO) MN_REPLY_COUNT2
+					FROM MAINTENANCE M
+					LEFT JOIN COMMON_CODE CC
+					ON M.MN_DONE = CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'WORK_DONE'
+					LEFT JOIN CLIENT C
+					ON M.CLIENT_NO = C.CLIENT_NO
+					LEFT JOIN WORK_SCOPE WS
+					ON M.WORK_SCOPE_NO = WS.WORK_SCOPE_NO
+					LEFT JOIN MN_GROUP MG
+					ON M.MN_GROUP_NO = MG.MN_GROUP_NO
+					LEFT JOIN MEMBER MEM
+					ON M.MEM_NO = MEM.MEM_NO
+					WHERE PARENT_NO = 0
+					<if test="searchText != null"> <!-- searchText가 null일때 에러 발생함 그래서 if문 추가 -->
+			       		<choose>
+			 				<when test="searchCategory == 1">
+			 					AND CLIENT_NAME LIKE '%' || #{searchText} || '%'
+			 				</when>
+			 				<when test="searchCategory == 2">
+			 					AND WORK_SCOPE_NAME LIKE '%' || #{searchText} || '%'
+			 				</when>
+			 				<when test="searchCategory == 3">
+			 					AND MEM_NAME LIKE '%' || #{searchText} || '%' OR MN_GROUP_NAME LIKE '%' || #{searchText} || '%'
+			 				</when>
+			 			</choose>
+			 		</if>
+			 			ORDER BY ${sortName } ${doneSort }
+							) A )
+
+					
+					
+			<![CDATA[
+			     WHERE RNUM >= ((#{page } - 1) * #{list_size }) + 1 AND RNUM <= #{page } * #{list_size }
+			]]>
+	
+<!-- 			ORDER BY -->
+			
+					
+	</select>
+	
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="getDetail" parameterType="int" resultMap="clobinvert">
+		SELECT M.MN_NO
+			 , M.MN_SUP_ITEM
+			 , M.MN_REFERENCE
+			 , M.MN_DONE
+			 , TO_CHAR(TO_DATE(M.MN_REQ_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd') AS MN_REQ_DATE 
+			 , TO_CHAR(TO_DATE(M.MN_START_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_START_DATE
+		     , TO_CHAR(TO_DATE(M.MN_END_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_END_DATE
+			 , M.MN_SUP_DAYS
+			 , M.MN_DEL_YN
+			 , M.WRITE_DATE
+			 , M.PARENT_NO
+			 , MEM.MEM_NAME
+			 , MEM.MEM_NO
+			 , M.CLIENT_NO
+			 , M.WORK_SCOPE_NO
+			 , C.CLIENT_NAME
+			 , CC.COMMON_CODE_VALUE AS SUPPORT_NAME
+       		 , CC.COMMON_CODE_KEY AS SUPPORT_NO
+			 , CCW.COMMON_CODE_VALUE AS WORK_SCOPE_NAME
+			 , CCWD.COMMON_CODE_VALUE AS MN_DONE_NAME
+       		 , CCWD.COMMON_CODE_KEY AS MN_DONE_NO
+			 , R.REQ_NAME
+			 , R.REQ_NO
+			 , MG.MN_GROUP_NAME
+			 , MG.MN_GROUP_NO
+		FROM MAINTENANCE M
+		LEFT JOIN MEMBER MEM
+		ON M.MEM_NO = MEM.MEM_NO
+		LEFT JOIN CLIENT C
+		ON M.CLIENT_NO = C.CLIENT_NO
+		LEFT JOIN COMMON_CODE CC
+		ON M.SUPPORT_NO = CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'SUPPORT'
+		LEFT JOIN COMMON_CODE CCW
+		ON M.WORK_SCOPE_NO = CCW.COMMON_CODE_KEY AND CCW.COMMON_CODE = 'WORK_SCOPE'
+		LEFT JOIN COMMON_CODE CCWD
+    	ON M.MN_DONE = CCWD.COMMON_CODE_KEY AND CCWD.COMMON_CODE = 'WORK_DONE'
+		LEFT JOIN REQ_MANAGEMENT RM
+		ON M.MN_NO = RM.MN_NO
+		LEFT JOIN MN_GROUP MG
+		ON M.MN_GROUP_NO = MG.MN_GROUP_NO
+		LEFT JOIN (SELECT R.REQ_NAME
+				   , R.REQ_NO
+				   , RM.MN_NO
+			  FROM REQUESTOR R
+			  LEFT JOIN REQ_MANAGEMENT RM
+			  ON RM.REQ_NO = R.REQ_NO) R
+		ON M.MN_NO = R.MN_NO
+		LEFT JOIN REQUESTOR R
+		ON RM.REQ_NO = R.REQ_NO
+		WHERE M.MN_NO = #{MN_NO } OR M.PARENT_NO = #{MN_NO }
+		ORDER BY M.MN_NO
+	</select>
+	
+	<select id="getFileList" resultType="map" parameterType="map">
+		SELECT UPLOAD_NO
+			 , UPLOAD_BEFORE
+			 , UPLOAD_AFTER
+			 , TO_CHAR(UPLOAD_TIME,'YY/MM/DD HH24:MI:SS') AS UPLOAD_TIME
+		FROM UPLOAD
+		WHERE UPLOAD_TABLE = 'MAINTENANCE'
+		  AND UPLOAD_CONNECT = #{no}
+	</select>
+
+	
+	<insert id="insert" parameterType="hashmap">
+	
+		INSERT INTO MAINTENANCE (MN_NO
+							   , MN_DONE
+							   , MN_SUP_ITEM
+							   , MN_REFERENCE
+							   , MN_REQ_DATE
+							   , MN_START_DATE
+							   , MN_END_DATE
+							   , MN_SUP_DAYS
+							   , MN_DEL_YN
+							   <choose>
+							   <when test="chkVal == 1">
+							   , MEM_NO
+							   </when>
+							   <when test="chkVal == 2">
+							   , MN_GROUP_NO
+							   </when>
+							   </choose>
+							   , CLIENT_NO
+							   , SUPPORT_NO
+							   , WORK_SCOPE_NO
+							   , WRITE_DATE
+							   , PARENT_NO)
+    					VALUES(mn_seq.nextval
+    						, #{jobStatus }
+    						, #{mn_sup_item }
+    						, #{mn_reference }
+    						, #{mn_req_date }
+    						, #{mn_start_date }
+    						, #{mn_end_date }
+    						, #{mn_sup_days }
+    						, 1
+    						<choose>
+							<when test="chkVal == 1">
+ 							, #{mem_no }
+ 							</when>
+							<when test="chkVal == 2">
+ 							, #{mn_group_no }
+ 							</when>
+							</choose>
+    						, #{client_no } 
+    						, #{support_no }
+    						, #{work_scope_no }
+    						, SYSDATE
+    						, 0)
+	 	<selectKey keyProperty="mn_no" order="AFTER" resultType="int">
+			SELECT MN_SEQ.CURRVAL FROM DUAL
+		</selectKey>     						
+	</insert>
+	 
+	<insert id="insertFile" parameterType="hashmap">
+		INSERT INTO UPLOAD (UPLOAD_NO
+						  , UPLOAD_BEFORE
+						  , UPLOAD_AFTER
+						  , UPLOAD_CONNECT
+						  , UPLOAD_TABLE
+						  , UPLOAD_TIME)
+		VALUES (up_seq.nextval
+		      , #{upload_before}
+		      , #{upload_after}
+		      , #{upload_connect}
+		      , #{upload_table}
+		      , SYSDATE
+		)
+	
+	</insert>
+	
+	<insert id="pass" parameterType="map">
+		INSERT INTO REQ_MANAGEMENT (RM_NO
+								  , MN_NO
+								  , REQ_NO)
+		VALUES (rm_seq.nextval
+			  , #{mn_no}
+			  , #{req_no})
+	</insert>
+	
+	<select id="getClientList" resultType="map">
+		SELECT CLIENT_NO, 
+			   CLIENT_NAME
+		FROM CLIENT
+	</select>
+	
+	<select id="getReq" parameterType="int" resultType="map">
+		SELECT A.CLIENT_NO, 
+			   B.REQ_NO, 
+			   B.REQ_NAME, 
+			   B.REQ_PHONE, 
+			   B.REQ_EMAIL
+		FROM CLIENT A 
+		INNER JOIN REQUESTOR B 
+		ON A.CLIENT_NO = B.CLIENT_NO
+		WHERE A.CLIENT_NO = #{CLIENT_NO}
+	</select>
+	
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="getWorkScope" parameterType="int" resultType="map">
+		SELECT C.COMMON_CODE_KEY AS WORK_SCOPE_NO
+     		 , C.COMMON_CODE_VALUE AS WORK_SCOPE_NAME
+	    FROM WORK A 
+	    INNER JOIN COMMON_CODE C
+	    ON A.WORK_SCOPE_NO = C.COMMON_CODE_KEY AND C.COMMON_CODE = 'WORK_SCOPE'
+	    WHERE A.CLIENT_NO = #{CLIENT_NO}
+	</select>
+	
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="getSupportName" parameterType="int" resultType="map">
+		SELECT C.COMMON_CODE_KEY AS SUPPORT_NO
+     		 , C.COMMON_CODE_VALUE AS SUPPORT_NAME
+	    FROM SUPPORT 
+	    INNER JOIN COMMON_CODE C
+	    ON SUPPORT_NO = C.COMMON_CODE_KEY AND C.COMMON_CODE = 'SUPPORT'
+	</select>
+	
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="modify" parameterType="int" resultMap="clobinvert">
+		SELECT M.MN_NO
+			 , M.MN_DONE
+			 , M.MN_SUP_ITEM
+			 , M.MN_REFERENCE
+			 , TO_CHAR(TO_DATE(M.MN_REQ_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd') AS MN_REQ_DATE 
+			 , TO_CHAR(TO_DATE(M.MN_START_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_START_DATE
+		     , TO_CHAR(TO_DATE(M.MN_END_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_END_DATE
+			 , M.MN_SUP_DAYS
+			 , M.MN_DEL_YN
+			 , M.WRITE_DATE
+			 , MEM.MEM_NAME
+			 , M.MEM_NO
+			 , M.MN_GROUP_NO
+			 , M.CLIENT_NO
+			 , M.WORK_SCOPE_NO
+			 , C.CLIENT_NAME
+			 , CC.COMMON_CODE_VALUE AS SUPPORT_NAME
+       		 , CC.COMMON_CODE_KEY AS SUPPORT_NO
+			 , CCW.COMMON_CODE_VALUE AS WORK_SCOPE_NAME
+			 , R.REQ_NAME
+			 , R.REQ_NO
+			 , MG.MN_GROUP_NAME
+		FROM MAINTENANCE M
+		LEFT JOIN MEMBER MEM
+		ON M.MEM_NO = MEM.MEM_NO
+		LEFT JOIN CLIENT C
+		ON M.CLIENT_NO = C.CLIENT_NO
+		LEFT JOIN COMMON_CODE CC
+		ON M.SUPPORT_NO = CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'SUPPORT'
+		LEFT JOIN COMMON_CODE CCW
+		ON M.WORK_SCOPE_NO = CCW.COMMON_CODE_KEY AND CCW.COMMON_CODE = 'WORK_SCOPE'
+		LEFT JOIN REQ_MANAGEMENT RM
+		ON M.MN_NO = RM.MN_NO
+		LEFT JOIN MN_GROUP MG
+		ON M.MN_GROUP_NO = MG.MN_GROUP_NO
+		LEFT JOIN (SELECT R.REQ_NAME
+				   , R.REQ_NO
+				   , RM.MN_NO
+			  FROM REQUESTOR R
+			  LEFT JOIN REQ_MANAGEMENT RM
+			  ON RM.REQ_NO = R.REQ_NO) R
+		ON M.MN_NO = R.MN_NO
+		WHERE M.MN_NO = #{MN_NO }
+
+
+<!-- 		SELECT M.MN_NO -->
+<!-- 			 , M.MN_SUP_ITEM -->
+<!-- 			 , M.MN_REFERENCE -->
+<!-- 			 , M.MN_REQ_DATE -->
+<!-- 			 , M.MN_START_DATE -->
+<!-- 			 , M.MN_END_DATE -->
+<!-- 			 , M.MN_SUP_DAYS -->
+<!-- 			 , M.MN_DEL_YN -->
+<!-- 			 , M.WRITE_DATE -->
+<!-- 			 , MEM.MEM_NAME -->
+<!-- 			 , M.CLIENT_NO -->
+<!-- 			 , M.WORK_SCOPE_NO -->
+<!-- 			 , C.CLIENT_NAME -->
+<!-- 			 , S.SUPPORT_NAME -->
+<!--        		 , S.SUPPORT_NO -->
+<!-- 			 , W.WORK_SCOPE_NAME -->
+<!-- 			 , R.REQ_NAME -->
+<!-- 			 , R.REQ_NO -->
+<!-- 			 , MG.MN_GROUP_NAME -->
+<!-- 		FROM MAINTENANCE M -->
+<!-- 		LEFT JOIN MEMBER MEM -->
+<!-- 		ON M.MEM_NO = MEM.MEM_NO -->
+<!-- 		LEFT JOIN CLIENT C -->
+<!-- 		ON M.CLIENT_NO = C.CLIENT_NO -->
+<!-- 		LEFT JOIN SUPPORT S -->
+<!-- 		ON M.SUPPORT_NO = S.SUPPORT_NO -->
+<!-- 		LEFT JOIN WORK_SCOPE W -->
+<!-- 		ON M.WORK_SCOPE_NO = W.WORK_SCOPE_NO -->
+<!-- 		LEFT JOIN REQ_MANAGEMENT RM -->
+<!-- 		ON M.MN_NO = RM.MN_NO -->
+<!-- 		LEFT JOIN MN_GROUP MG -->
+<!-- 		ON M.MN_GROUP_NO = MG.MN_GROUP_NO -->
+<!--     LEFT JOIN REQUESTOR R -->
+<!--     ON RM.REQ_NO = R.REQ_NO -->
+<!--     WHERE M.MN_NO = #{MN_NO } -->
+	</select>
+	
+	<select id="getClient" parameterType="map" resultType="map">
+		SELECT CLIENT_NO
+		     , CLIENT_NAME
+		FROM CLIENT
+	</select>
+	
+	<select id="getClientStats" parameterType="map" resultMap="clobinvert">
+	
+		SELECT TOT.*
+		FROM(SELECT TOTAL.*
+					, ROWNUM AS RNUM
+		FROM(SELECT  M.MN_NO
+					, COUNT(*) OVER() COUNT
+					 , M.WORK_SCOPE_NO
+				     , WSCC.COMMON_CODE_VALUE AS WORK_SCOPE_NAME
+				     , M.SUPPORT_NO
+				     , SCC.COMMON_CODE_VALUE AS SUPPORT_NAME
+				     , R.REQ_NO
+				     , R.REQ_NAME
+		         	 , R.REQ_RANK
+				     , M.MN_REQ_DATE
+				     , M.MN_START_DATE
+				     , M.MN_END_DATE
+				     , M.MN_SUP_DAYS
+				     , G.MN_GROUP_NAME
+				     , C.CLIENT_NAME AS CLIENT_NAME
+				     , M.MN_SUP_ITEM AS ORIGINAL_MN_SUP_ITEM
+				     , M.MN_REFERENCE AS ORIGINAL_MN_REFERENCE
+				     , CASE
+				     <![CDATA[
+				            WHEN LENGTH(M.MN_SUP_ITEM) > 13 THEN SUBSTR(M.MN_SUP_ITEM, 0, 13) || '...'
+				            WHEN LENGTH(M.MN_SUP_ITEM) < 13 THEN M.MN_SUP_ITEM
+				            END AS MN_SUP_ITEM
+				     , CASE
+				            WHEN LENGTH(M.MN_REFERENCE) > 13 THEN SUBSTR(M.MN_REFERENCE, 0, 13) || '...'
+				            WHEN LENGTH(M.MN_REFERENCE) < 13 THEN M.MN_REFERENCE
+				            END AS MN_REFERENCE
+				     ]]>
+				     , MEM.MEM_NAME
+				FROM MAINTENANCE M
+				LEFT JOIN COMMON_CODE WSCC
+				ON M.WORK_SCOPE_NO = WSCC.COMMON_CODE_KEY AND WSCC.COMMON_CODE = 'WORK_SCOPE'
+				LEFT JOIN COMMON_CODE SCC
+				ON M.SUPPORT_NO = SCC.COMMON_CODE_KEY AND SCC.COMMON_CODE = 'SUPPORT'
+			    LEFT JOIN REQ_MANAGEMENT RM
+			    ON M.MN_NO = RM.MN_NO
+				LEFT JOIN REQUESTOR R
+				ON RM.REQ_NO = R.REQ_NO
+				LEFT JOIN MEMBER MEM
+				ON M.MEM_NO = MEM.MEM_NO
+				LEFT JOIN MN_GROUP G
+				ON M.MN_GROUP_NO = G.MN_GROUP_NO
+				LEFT JOIN CLIENT C
+					ON M.CLIENT_NO = C.CLIENT_NO
+				
+				WHERE M.CLIENT_NO = #{cNo } 
+				<if test="workScope != 0">
+					AND M.WORK_SCOPE_NO = #{workScope } 
+				</if>
+				<if test="supportName != 0">
+					AND M.SUPPORT_NO = #{supportName }
+				</if>
+				
+		    	ORDER BY MN_NO DESC) TOTAL)TOT
+		    	
+		    	<![CDATA[
+		    		WHERE RNUM >= ((#{page } - 1) * #{list_size }) + 1 AND RNUM <= #{page } * #{list_size }
+				]]>
+	</select>
+	
+	<update id="update" parameterType="hashmap">
+		UPDATE MAINTENANCE SET 
+				 MN_SUP_ITEM = #{mn_sup_item}
+               , MN_REFERENCE = #{mn_reference}
+               , MN_REQ_DATE = #{mn_req_date}
+               , MN_START_DATE = #{mn_start_date}
+               , MN_END_DATE = #{mn_end_date}
+               , MN_SUP_DAYS = #{mn_sup_days}
+               , MN_DONE = #{jobStatus }
+               <choose>
+				   <when test="chkVal == 1">
+	               , MEM_NO = #{mem_no }
+	               , MN_GROUP_NO = null
+	               </when>
+				   <when test="chkVal == 2">
+				   , MEM_NO = null
+	               , MN_GROUP_NO = #{mn_group_no }
+	               </when>
+			   </choose>
+               , CLIENT_NO = #{client_no}
+               , WORK_SCOPE_NO = #{work_scope_no}
+               , SUPPORT_NO = #{support_no}
+               , WRITE_DATE = SYSDATE
+          WHERE MN_NO = #{mn_no}
+          <selectKey keyProperty="mn_no" order="AFTER" resultType="int">
+			SELECT #{mn_no} FROM DUAL
+		</selectKey>
+	</update>
+	
+	<update id="updatePass" parameterType="map">
+		UPDATE REQ_MANAGEMENT SET MN_NO = #{mn_no}
+								, REQ_NO = #{req_no}
+					WHERE MN_NO = #{mn_no }
+		
+	</update>
+	
+	<delete id="doDelete">
+		DELETE
+		FROM MAINTENANCE
+		WHERE MN_NO = #{mn_no }
+	</delete>
+	
+	<delete id="imgDelete">
+		DELETE
+		FROM UPLOAD
+		WHERE UPLOAD_CONNECT = #{mn_no }
+		  AND UPLOAD_TABLE = 'MAINTENANCE'	
+	</delete>
+	
+	<delete id="imgDeleteOne" parameterType="string">
+		DELETE
+		FROM UPLOAD
+		WHERE UPLOAD_AFTER = #{file_name }
+	</delete>
+	
+	<select id="imgSelectForDel" resultType="hashmap">
+		SELECT UPLOAD_AFTER
+		FROM UPLOAD
+		WHERE UPLOAD_CONNECT = #{mn_no }
+		  AND UPLOAD_TABLE = 'MAINTENANCE'	
+	</select>
+
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="selectListForCalendar" resultType="com.nos.mm.util.LowerKeyMap" parameterType="map">
+		SELECT M.MN_NO AS id
+<!-- 		<choose> -->
+<!-- 			<when test="mn_done == 0"> -->
+<!-- 			 , CONCAT(CONCAT(CONCAT(C.CLIENT_NAME, ' - '),W.WORK_SCOPE_NAME),M.MN_DONE) AS text -->
+<!-- 			</when> -->
+<!-- 			<when test="mn_done == 1"> -->
+<!-- 			 , CONCAT(CONCAT(C.CLIENT_NAME, ' - '),W.WORK_SCOPE_NAME) AS text -->
+<!-- 			</when> -->
+<!-- 		</choose> -->
+<!-- 			 , CONCAT(CONCAT(CONCAT(C.CLIENT_NAME, ' - '),W.WORK_SCOPE_NAME),M.MN_DONE) AS text -->
+			 , CONCAT(CONCAT(C.CLIENT_NAME, ' - '),CC.COMMON_CODE_VALUE) AS text
+		 	 , TO_CHAR(TO_DATE(MN_START_DATE,'yyyy-mm-dd hh24:mi:ss'),'mm/dd/yyyy hh24:mi') AS start_date
+			 , TO_CHAR(TO_DATE(MN_END_DATE,'yyyy-mm-dd hh24:mi:ss'),'mm/dd/yyyy hh24:mi') AS end_date
+			 , M.MN_DONE AS mn_done
+		FROM MAINTENANCE M
+		LEFT JOIN JOIN J
+		ON M.MN_GROUP_NO = J.MN_GROUP_NO  
+		LEFT JOIN CLIENT C
+		ON C.CLIENT_NO = M.CLIENT_NO
+		LEFT JOIN COMMON_CODE CC
+		ON  M.WORK_SCOPE_NO LIKE CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'WORK_SCOPE'
+	    WHERE M.MEM_NO = #{mem_no } OR J.MEM_NO = #{mem_no }
+	</select>
+	
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<select id="allListForCalendar" resultType="com.nos.mm.util.LowerKeyMap">
+		SELECT M.MN_NO AS id
+<!-- 		<choose> -->
+<!-- 			<when test="mn_done == 0"> -->
+<!-- 			 , CONCAT(CONCAT(CONCAT(C.CLIENT_NAME, ' - '),W.WORK_SCOPE_NAME),M.MN_DONE) AS text -->
+<!-- 			</when> -->
+<!-- 			<when test="mn_done == 1"> -->
+<!-- 			 , CONCAT(CONCAT(C.CLIENT_NAME, ' - '),W.WORK_SCOPE_NAME) AS text -->
+<!-- 			</when> -->
+<!-- 		</choose> -->
+<!-- 			 , CONCAT(CONCAT(CONCAT(C.CLIENT_NAME, ' - '),W.WORK_SCOPE_NAME),M.MN_DONE) AS text -->
+			 , CONCAT(CONCAT(C.CLIENT_NAME, ' - '),CC.COMMON_CODE_VALUE) AS text
+		 	 , TO_CHAR(TO_DATE(MN_START_DATE,'yyyy-mm-dd hh24:mi:ss'),'mm/dd/yyyy hh24:mi') AS start_date
+			 , TO_CHAR(TO_DATE(MN_END_DATE,'yyyy-mm-dd hh24:mi:ss'),'mm/dd/yyyy hh24:mi') AS end_date
+			 , M.MN_DONE AS mn_done
+		FROM MAINTENANCE M
+		LEFT JOIN CLIENT C
+		ON C.CLIENT_NO = M.CLIENT_NO
+		LEFT JOIN COMMON_CODE CC
+		ON  M.WORK_SCOPE_NO LIKE CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'WORK_SCOPE'
+	</select>
+	
+	<select id="getGroup" parameterType="int" resultType="map">
+		SELECT G.MN_GROUP_NAME
+			 , G.MN_GROUP_NO
+		FROM MN_GROUP G, JOIN J
+		WHERE G.MN_GROUP_NO = J.MN_GROUP_NO 
+		AND J.MEM_NO = #{mem_no }
+	</select>
+	
+	<insert id="replyInsert" parameterType="hashmap">
+		INSERT INTO MAINTENANCE (MN_NO
+							   , MN_DONE
+							   , MN_SUP_ITEM
+							   , MN_REFERENCE
+							   , MN_REQ_DATE
+							   , MN_START_DATE
+							   , MN_END_DATE
+							   , MN_SUP_DAYS
+							   , MN_DEL_YN
+							   <choose>
+							   <when test="chkVal == 1">
+							   , MEM_NO
+							   </when>
+							   <when test="chkVal == 2">
+							   , MN_GROUP_NO
+							   </when>
+							   </choose>
+							   , CLIENT_NO
+							   , SUPPORT_NO
+							   , WORK_SCOPE_NO
+							   , WRITE_DATE
+							   , PARENT_NO
+							   
+							   )
+    					VALUES(mn_seq.nextval
+    						, #{jobStatus }
+    						, #{mn_sup_item }
+    						, #{mn_reference }
+    						, #{mn_req_date }
+    						, #{mn_start_date }
+    						, #{mn_end_date }
+    						, #{mn_sup_days }
+    						, 1
+    						<choose>
+							<when test="chkVal == 1">
+ 							, #{mem_no }
+ 							</when>
+							<when test="chkVal == 2">
+ 							, #{mn_group_no }
+ 							</when>
+							</choose>
+    						, #{client_no } 
+    						, #{support_no }
+    						, #{work_scope_no }
+    						, SYSDATE
+    						, #{pathNo })
+    	<selectKey keyProperty="mn_no" order="AFTER" resultType="int">
+			SELECT MN_SEQ.CURRVAL FROM DUAL
+		</selectKey> 
+	</insert>
+	<insert id="replyPass" parameterType="map">
+		INSERT INTO REQ_MANAGEMENT (RM_NO
+								  , MN_NO
+								  , REQ_NO)
+		VALUES (rm_seq.nextval
+			  , #{mn_no}
+			  , #{req_no})
+	</insert>
+<!-- 	<update id="replyUpdate" parameterType="map"> -->
+<!-- 		UPDATE MAINTENANCE SET -->
+<!-- 		MN_REPLY_COUNT = ( SELECT MAX(MN_REPLY_COUNT)+1  FROM MAINTENANCE ) -->
+<!-- 		WHERE MN_NO = #{mn_no } -->
+<!-- 	</update> -->
+	
+	<insert id="imgInsert" parameterType="hashmap">
+		INSERT INTO UPLOAD (UPLOAD_NO
+						  , UPLOAD_BEFORE
+						  , UPLOAD_AFTER
+						  , UPLOAD_CONNECT
+						  , UPLOAD_TABLE)
+		VALUES (up_seq.nextval
+		      , #{upload_before}
+		      , #{upload_after}
+		      , #{mn_no}
+		      , 'MAINTENANCE'
+		)
+	</insert>
+	
+	<select id="getDetailImg" parameterType="int" resultType="map">
+			SELECT UPLOAD_BEFORE
+				 , UPLOAD_AFTER
+				 , UPLOAD_NO
+				 , TO_CHAR(UPLOAD_TIME,'YY/MM/DD HH24:MI:SS') AS UPLOAD_TIME
+			FROM UPLOAD
+			WHERE UPLOAD_CONNECT = #{MN_NO } 
+			  AND UPLOAD_TABLE = 'MAINTENANCE'
+			  AND NOT UPLOAD_AFTER LIKE '%.xl%'
+	</select>
+	
+	<select id="getMemberList" resultType="map">
+		SELECT MEM_NO
+			 , MEM_NAME
+			 , MEM_TEL
+			 , AUTH_NO
+		FROM MEMBER
+	</select>
+	
+	<select id="gerProjectList" parameterType="map" resultType="map">
+		SELECT PAGE.*
+		FROM (SELECT ROWNUM RN
+		            , RN.*
+		      FROM (SELECT COUNT(*) OVER() TOTAL
+		                  , P.PJ_NO
+		                  , P.PJ_NAME
+		                  , TO_CHAR(P.PJ_START_DATE, 'YYYY-MM-DD') PJ_START_DATE
+		                  , TO_CHAR(P.PJ_END_DATE, 'YYYY-MM-DD') PJ_END_DATE
+		                  , C.CLIENT_NAME
+		            FROM PROJECT P 
+		            JOIN CLIENT C
+		            ON P.CLIENT_NO = C.CLIENT_NO
+		      		<if test="searchSort == 1">
+		            	WHERE LOWER(P.PJ_NAME) LIKE LOWER('%' || #{keyword } || '%')
+		      		</if>
+		      		<if test="searchSort == 2">
+			            WHERE LOWER(C.CLIENT_NAME) LIKE LOWER('%' || #{keyword } || '%')
+		      		</if>
+		            ORDER BY P.PJ_NO DESC) RN) PAGE
+		WHERE PAGE.RN BETWEEN (#{page } - 1) * #{list_size } + 1 AND #{page } * #{list_size }
+		ORDER BY PAGE.RN ASC
+	</select>
+	
+	<select id="getProjectScope" parameterType="int" resultType="map">
+		SELECT *
+		FROM (SELECT * 
+				FROM COMMON_CODE  
+				WHERE COMMON_CODE = 'PROJECT_TYPE') C
+		<if test="value != 0">
+			JOIN PROJECT_TYPE P  
+			ON P.PJ_TYPE = C.COMMON_CODE_KEY
+			AND PJ_NO = #{value }
+		</if>
+	</select>
+	
+	<insert id="projectRegister" parameterType="map">
+		INSERT INTO PROJECT(
+							PJ_NO
+							, PJ_NAME
+							, PJ_START_DATE
+							, PJ_END_DATE
+							, PJ_EXPLANATION
+							, CLIENT_NO
+							) 
+					VALUES(
+							pj_seq.nextval
+							, #{project_name }
+							, #{project_start_date }
+							, #{project_end_date }
+							, #{project_explanation }
+							, #{client_no }
+							)
+		<selectKey keyProperty="pj_no" order="AFTER" resultType="int">
+			SELECT PJ_SEQ.CURRVAL FROM DUAL
+		</selectKey> 
+	</insert>
+	
+	<insert id="projectJoinRegister" parameterType="map">
+		INSERT INTO PROJECT_JOIN(
+									PJ_JOIN_NO
+								  , PJ_NO
+								  , MEM_NO
+								  , MEM_START_DATE
+								  , MEM_END_DATE
+								)
+						VALUES (
+									pj_join_seq.nextval
+								 , #{pj_no }
+								 , #{mem_no }
+								 , #{mem_start_date }
+								 , #{mem_end_date }
+							   )
+	</insert>
+
+	<insert id="projectTypeRegister" parameterType="map">
+		INSERT INTO PROJECT_TYPE(
+									PJ_TYPE_NO
+								  , PJ_TYPE
+								  , PJ_NO
+								)
+						VALUES (
+									pj_type.nextval
+								  , #{pj_type }
+								  , #{pj_no }
+								)
+	</insert>
+	
+	<!-- 한방에 다 뽑아오는 것은 무리가 있음!! -->
+	<select id="projectView" parameterType="int" resultType="map">
+		SELECT P.PJ_NO
+		      , P.PJ_NAME
+		      , P.PJ_START_DATE
+		      , P.PJ_END_DATE
+		      , P.PJ_EXPLANATION
+		      , C.CLIENT_NAME
+		      , CC.COMMON_CODE_VALUE
+		      , M.MEM_NO
+		      , M.MEM_NAME
+		      , PJ.MEM_START_DATE
+		      , PJ.MEM_END_DATE
+		FROM PROJECT P
+		JOIN CLIENT C
+		ON P.CLIENT_NO = C.CLIENT_NO
+		JOIN PROJECT_TYPE PT
+		ON P.PJ_NO = PT.PJ_NO
+		JOIN COMMON_CODE CC
+		ON PT.PJ_TYPE = CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'PROJECT_TYPE'
+		JOIN PROJECT_JOIN PJ
+		ON P.PJ_NO = PJ.PJ_NO
+		JOIN MEMBER M
+		ON PJ.MEM_NO = M.MEM_NO
+		WHERE P.PJ_NO = #{project_no }
+	</select>
+	
+	<!-- 한방은 무리여서 아래 3개로 나눔 -->
+	<select id="pjData" parameterType="int" resultMap="clobinvert">
+		SELECT P.PJ_NO
+			      , P.PJ_NAME
+			      , TO_CHAR(P.PJ_START_DATE, 'YYYY-MM-DD') AS PJ_START_DATE
+		      	  , TO_CHAR(P.PJ_END_DATE, 'YYYY-MM-DD') AS PJ_END_DATE
+			      , P.PJ_EXPLANATION
+			      , C.CLIENT_NAME
+	          , C.CLIENT_NO
+			FROM PROJECT P
+			JOIN CLIENT C
+			ON P.CLIENT_NO = C.CLIENT_NO
+	    WHERE P.PJ_NO = #{project_no }
+	</select>
+	
+	<select id="pjType" parameterType="int" resultType="map">
+		SELECT P.PJ_TYPE
+	          , C.COMMON_CODE_VALUE
+	    FROM PROJECT_TYPE P
+	    JOIN COMMON_CODE C
+	    ON P.PJ_TYPE = C.COMMON_CODE_KEY AND C.COMMON_CODE = 'PROJECT_TYPE'
+	    WHERE PJ_NO = #{project_no }
+	</select>
+	
+	<select id="pjJoin" parameterType="int" resultType="map">
+		SELECT PJ.MEM_NO
+	          , TO_CHAR(PJ.MEM_START_DATE, 'YYYY-MM-DD') AS MEM_START_DATE 
+	          , TO_CHAR(PJ.MEM_END_DATE, 'YYYY-MM-DD') AS MEM_END_DATE
+	          , M.MEM_NAME
+	    FROM PROJECT_JOIN PJ
+	    JOIN MEMBER M
+	    ON PJ.MEM_NO = M.MEM_NO
+	    WHERE PJ.PJ_NO = #{project_no }
+	    ORDER BY MEM_NAME
+	</select>
+	
+	<delete id="pjDelete" parameterType="int">
+		DELETE FROM PROJECT WHERE PJ_NO = #{no }
+	</delete>
+
+	<delete id="pjTypeDelete" parameterType="int">
+	    DELETE FROM PROJECT_TYPE WHERE PJ_NO = #{no }
+	</delete>
+
+	<delete id="pjJoinDelete" parameterType="int">
+	    DELETE FROM PROJECT_JOIN WHERE PJ_NO = #{no }
+	</delete>
+	
+	<update id="projectModify" parameterType="map">
+		UPDATE PROJECT 
+			SET PJ_NAME = #{project_name }
+				, PJ_START_DATE = #{project_start_date }
+				, PJ_END_DATE = #{project_end_date }
+				, PJ_EXPLANATION = #{project_explanation }
+				, CLIENT_NO = #{client_no } 
+		WHERE PJ_NO = #{no }
+	</update>
+	
+</mapper>

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.TotalSearchMapper">
+<resultMap type="map" id="clobinvert">
+	<result property="MN_SUP_ITEM" column="MN_SUP_ITEM" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="MN_REFERENCE" column="MN_REFERENCE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="CLIENT_NOTE" column="CLIENT_NOTE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="REQ_NOTE" column="REQ_NOTE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="TROUBLE_PROBLEM" column="TROUBLE_PROBLEM" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="TROUBLE_ANSWER" column="TROUBLE_ANSWER" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="REPLY_ANSWER" column="REPLY_ANSWER" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="BUGREPORT_PROBLEM" column="BUGREPORT_PROBLEM" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="BUGREPORT_ANSWER" column="BUGREPORT_ANSWER" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="BUGREPORT_REPLY_ANSWER" column="BUGREPORT_REPLY_ANSWER" jdbcType="CLOB" javaType="java.lang.String"/>
+</resultMap>
+
+
+	<select id="maintenanceSearch" parameterType="map" resultType="map">
+ 		SELECT * 
+ 		FROM(SELECT A.*
+ 				  , COUNT(*) OVER() COUNT
+ 				  , ROWNUM AS RNUM
+			FROM (SELECT 
+			 		    M.MN_NO
+			 		   , M.MN_DONE
+			 		   , CC.COMMON_CODE_VALUE AS MN_DONE_NAME
+       		 		   , CC.COMMON_CODE_KEY AS MN_DONE_NO
+					   , C.CLIENT_NAME
+					   , WS.WORK_SCOPE_NAME
+					   , MEM.MEM_NAME
+					   , M.PARENT_NO
+					   , TO_CHAR(TO_DATE(M.MN_START_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_START_DATE
+					   , TO_CHAR(TO_DATE(M.MN_END_DATE,'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi') AS MN_END_DATE
+					   , MG.MN_GROUP_NAME
+					   , (SELECT COUNT(*) FROM MAINTENANCE WHERE M.MN_NO = PARENT_NO) MN_REPLY_COUNT2
+					FROM MAINTENANCE M
+					LEFT JOIN COMMON_CODE CC
+					ON M.MN_DONE = CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'WORK_DONE'
+					LEFT JOIN CLIENT C
+					ON M.CLIENT_NO = C.CLIENT_NO
+					LEFT JOIN WORK_SCOPE WS
+					ON M.WORK_SCOPE_NO = WS.WORK_SCOPE_NO
+					LEFT JOIN MN_GROUP MG
+					ON M.MN_GROUP_NO = MG.MN_GROUP_NO
+					LEFT JOIN MEMBER MEM
+					ON M.MEM_NO = MEM.MEM_NO
+					WHERE PARENT_NO = 0
+					<if test="totalSearchText != null"> <!-- searchText가 null일때 에러 발생함 그래서 if문 추가 -->
+	 					AND MEM_NAME LIKE '%' || #{totalSearchText} || '%' 
+	 					OR CLIENT_NAME LIKE '%' || #{totalSearchText} || '%'
+	 					OR MN_SUP_ITEM LIKE '%' || #{totalSearchText} || '%'
+	 					OR MN_REFERENCE LIKE '%' || #{totalSearchText} || '%'
+			 		</if>
+					ORDER BY MN_END_DATE  DESC
+					) A )
+					
+			
+	
+<!-- 			ORDER BY -->
+	</select>
+	<select id="clientSearch" parameterType="map" resultType="map">
+		SELECT  *
+		FROM (SELECT ROWNUM AS RNUM, A.*,
+		COUNT(*) OVER() COUNT
+		        FROM (SELECT  C.CLIENT_NO
+					 		, C.CLIENT_NAME
+					 		, C.CLIENT_ADDR
+			    	 		, R.REQ_NAME
+			     	 		, R.REQ_RANK
+			     	 		, R.REQ_PHONE
+				FROM CLIENT C , REQUESTOR R
+				WHERE C.CLIENT_NO = R.CLIENT_NO AND R.REQ_NO 
+				IN (SELECT MIN(REQ_NO) FROM REQUESTOR GROUP BY CLIENT_NO)
+		      	<if test="totalSearchText != null"> <!-- searchText가 null일때 에러 발생함 그래서 if문 추가 -->
+ 					AND CLIENT_NAME LIKE '%' || #{totalSearchText} || '%'
+ 					OR CLIENT_ADDR LIKE '%' || #{totalSearchText} || '%'
+ 					OR CLIENT_NOTE LIKE '%' || #{totalSearchText} || '%'
+<!--  					OR REQ_NAME LIKE '%' || #{totalSearchText} || '%' -->
+		 		</if>
+		      ORDER BY CLIENT_NAME ASC) A)
+		       ORDER BY RNUM
+		      
+	</select>
+	
+	<select id="troubleSearch" resultMap="clobinvert" parameterType="map">
+	<![CDATA[
+		SELECT * 
+		FROM (SELECT ROWNUM AS RNUM, A.*,
+		COUNT(*) OVER() COUNT
+			FROM(SELECT T.TROUBLE_NO
+				       ,CASE 
+			              WHEN LENGTH(T.TROUBLE_PROBLEM)>100 THEN SUBSTR(T.TROUBLE_PROBLEM ,0,100) || '...'
+			              WHEN LENGTH(T.TROUBLE_PROBLEM)<100 THEN T.TROUBLE_PROBLEM
+			              END AS TROUBLE_PROBLEM
+		               ,CASE 
+			              WHEN LENGTH(T.TROUBLE_ANSWER)>100 THEN SUBSTR(T.TROUBLE_ANSWER ,0,100) || '...'
+			              WHEN LENGTH(T.TROUBLE_ANSWER)<100 THEN T.TROUBLE_ANSWER
+			              END AS TROUBLE_ANSWER
+				       , T.TROUBLE_WRITE_DATE
+				       , VM.VERSION 
+				       , VM.VERSION_KIND
+				       , P.PRODUCT_NAME
+				       , C.CLIENT_NAME
+				       , M.MEM_NAME
+				FROM TROUBLE T
+				LEFT JOIN PRODUCT P
+				ON T.PRODUCT_NO = P.PRODUCT_NO
+				LEFT JOIN CLIENT C
+				ON T.CLIENT_NO = C.CLIENT_NO
+				LEFT JOIN VERSION_MANAGEMENT VM
+				ON T.VERSION_NO = VM.VERSION_NO
+				LEFT JOIN MEMBER M
+				ON T.MEM_NO = M.MEM_NO
+				]]>
+				<if test="totalSearchText != null">
+					RIGHT JOIN (
+						SELECT T.TROUBLE_NO 
+						FROM TROUBLE T
+						     LEFT JOIN REPLY R
+						     ON T.TROUBLE_NO = R.TROUBLE_NO
+						WHERE T.TROUBLE_PROBLEM LIKE '%' || #{totalSearchText} || '%'
+						     OR T.TROUBLE_ANSWER LIKE '%' || #{totalSearchText} || '%' 
+						     OR R.REPLY_ANSWER LIKE '%' || #{totalSearchText} || '%' 
+						     GROUP BY T.TROUBLE_NO) G
+        			ON G.TROUBLE_NO = T.TROUBLE_NO
+				</if>
+				ORDER BY T.TROUBLE_NO DESC) A)
+	</select>
+	
+	<select id="bugReportSearch" resultMap="clobinvert" parameterType="map">
+	<![CDATA[
+		SELECT * 
+		FROM (SELECT ROWNUM AS RNUM, A.*,
+		COUNT(*) OVER() COUNT
+			FROM(SELECT T.BUGREPORT_NO
+				       ,CASE 
+			              WHEN LENGTH(T.BUGREPORT_PROBLEM)>100 THEN SUBSTR(T.BUGREPORT_PROBLEM ,0,100) || '...'
+			              WHEN LENGTH(T.BUGREPORT_PROBLEM)<100 THEN T.BUGREPORT_PROBLEM
+			              END AS BUGREPORT_PROBLEM
+		               ,CASE 
+			              WHEN LENGTH(T.BUGREPORT_ANSWER)>100 THEN SUBSTR(T.BUGREPORT_ANSWER ,0,100) || '...'
+			              WHEN LENGTH(T.BUGREPORT_ANSWER)<100 THEN T.BUGREPORT_ANSWER
+			              END AS BUGREPORT_ANSWER
+				       , T.BUGREPORT_WRITE_DATE
+				       , VM.VERSION 
+				       , VM.VERSION_KIND
+				       , P.PRODUCT_NAME
+				       , C.CLIENT_NAME
+				       , M.MEM_NAME
+				FROM BUGREPORT T
+				LEFT JOIN PRODUCT P
+				ON T.PRODUCT_NO = P.PRODUCT_NO
+				LEFT JOIN CLIENT C
+				ON T.CLIENT_NO = C.CLIENT_NO
+				LEFT JOIN VERSION_MANAGEMENT VM
+				ON T.VERSION_NO = VM.VERSION_NO
+				LEFT JOIN MEMBER M
+				ON T.MEM_NO = M.MEM_NO
+				]]>
+				<if test="totalSearchText != null">
+					RIGHT JOIN (
+						SELECT T.BUGREPORT_NO 
+						FROM BUGREPORT T
+						     LEFT JOIN BUGREPORT_REPLY R
+						     ON T.BUGREPORT_NO = R.BUGREPORT_NO
+						WHERE T.BUGREPORT_PROBLEM LIKE '%' || #{totalSearchText} || '%'
+						     OR T.BUGREPORT_ANSWER LIKE '%' || #{totalSearchText} || '%' 
+						     OR R.BUGREPORT_REPLY_ANSWER LIKE '%' || #{totalSearchText} || '%' 
+						     GROUP BY T.BUGREPORT_NO) G
+        			ON G.BUGREPORT_NO = T.BUGREPORT_NO
+				</if>
+				ORDER BY T.BUGREPORT_NO DESC) A)
+	</select>
+</mapper>

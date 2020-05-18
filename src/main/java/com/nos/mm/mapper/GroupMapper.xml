@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.GroupMapper">
+
+	<select id="groupDetail" parameterType="int" resultType="map">
+		SELECT M.MEM_ID
+		      , M.MEM_NAME
+		      , M.MEM_NO
+		FROM JOIN J
+		JOIN MEMBER M
+		ON J.MEM_NO = M.MEM_NO
+		WHERE MN_GROUP_NO = #{mn_group_no }
+	</select>
+
+</mapper>

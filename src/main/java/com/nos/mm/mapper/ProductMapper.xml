@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.ProductMapper">
+<resultMap type="map" id="clobinvert">
+	<result property="PRODUCT_NOTE" column="PRODUCT_NOTE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="VERSION_NOTE" column="VERSION_NOTE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="LICENSE_KEY" column="LICENSE_KEY" jdbcType="CLOB" javaType="java.lang.String"/>
+	
+</resultMap>
+
+
+
+
+
+<!--                                                 select -->
+	<select id="getList" resultMap="clobinvert">
+		SELECT ROWNUM AS RNUM
+			  ,PRODUCT_NO
+			  ,PRODUCT_NAME
+			  ,PRODUCT_NOTE
+		FROM PRODUCT
+		ORDER BY ROWNUM
+	</select>
+	
+	<select id="getChart" resultType="map">
+		SELECT P.PRODUCT_NAME
+		     , CO.COUNT_PRODUCT
+		FROM( SELECT PRODUCT_NO
+				   , COUNT(*) AS COUN`T_PRODUCT
+			  FROM USE_PRODUCT
+	  	      WHERE CLIENT_NO = #{client_no}
+			  GROUP BY PRODUCT_NO) CO, 
+		PRODUCT P
+		WHERE CO.PRODUCT_NO = P.PRODUCT_NO
+	</select>
+	
+	<select id="getDetail" parameterType="map" resultMap="clobinvert">
+		SELECT PRODUCT_NAME
+		     , PRODUCT_NOTE 
+		     , PRODUCT_NO
+		FROM PRODUCT 
+		WHERE PRODUCT_NO = #{product_no}
+	</select>
+	
+	<select id="getVersion" parameterType="map" resultMap="clobinvert">
+		SELECT VERSION
+			 , TO_CHAR(EXPIRE_DATE,'YYYY-MM-DD HH24:MI:SS') AS EXPIRE_DATE
+			 , VERSION_NOTE 
+			 , VERSION_NO
+			 , VERSION_KIND
+		FROM VERSION_MANAGEMENT 
+		WHERE PRODUCT_NO = #{product_no}
+		ORDER BY VERSION_KIND, VERSION
+	</select>
+	
+	<select id="getProduct" parameterType="map" resultType="map">
+		SELECT PRODUCT_NO
+			 , PRODUCT_NAME
+		FROM PRODUCT
+	</select>
+	
+	<select id="getClient" parameterType="map" resultType="map">
+		SELECT CLIENT_NO
+		     , CLIENT_NAME
+		FROM CLIENT
+	</select>
+	
+	<select id="getVersionList" parameterType="map" resultType="map">
+		SELECT VERSION_NO
+			 , VERSION_KIND
+			 , VERSION
+		FROM VERSION_MANAGEMENT
+		WHERE PRODUCT_NO = #{productNo } AND VERSION_KIND = #{versionKind }
+	</select>
+	
+	<select id="getProductList" parameterType="map" resultMap="clobinvert">
+		SELECT P.PRODUCT_NO
+			 , P.PRODUCT_NAME
+		     , VM.VERSION_KIND
+		     , VM.VERSION_NO
+		     , VM.VERSION
+		     , L.LICENSE_NO
+		     , TO_CHAR(L.LICENSE_REG_DATE,'YYYY-MM-DD HH24:MI:SS') AS LICENSE_REG_DATE
+		     , L.LICENSE_KEY as LICENSE_KEY
+		FROM VERSION_MANAGEMENT VM
+		LEFT JOIN LICENSE L
+		ON VM.VERSION_NO = L.VERSION_NO
+		LEFT JOIN PRODUCT P
+		ON VM.PRODUCT_NO = P.PRODUCT_NO
+		WHERE CLIENT_NO = #{no }
+	</select>
+	
+	<select id="getUsingProductList" parameterType="map" resultType="map">
+		SELECT DISTINCT P.PRODUCT_NO
+		              , P.PRODUCT_NAME
+		              , UP.CLIENT_NO
+		FROM PRODUCT P
+		JOIN USE_PRODUCT UP
+		ON  P.PRODUCT_NO = UP.PRODUCT_NO
+		WHERE CLIENT_NO = #{client_no }
+		ORDER BY P.PRODUCT_NO
+	</select>
+	
+	<select id="getUsingClientList" parameterType="map" resultType="map">
+		SELECT DISTINCT UP.PRODUCT_NO
+		     , UP.CLIENT_NO
+		     , C.CLIENT_NAME
+		FROM USE_PRODUCT UP
+		INNER JOIN CLIENT C
+		ON UP.CLIENT_NO = C.CLIENT_NO
+		WHERE PRODUCT_NO = #{product_no }
+		ORDER BY UP.CLIENT_NO
+	</select>
+	
+	<select id="getUsingVersionList" parameterType="map" resultType="map">
+		SELECT L.LICENSE_NO
+		     , P.PRODUCT_NO
+		     , P.PRODUCT_NAME
+		     , VM.VERSION_NO
+		     , VM.VERSION_KIND
+		     , VM.VERSION
+		     , VM.EXPIRE_DATE
+		     , CEIL(SYSDATE - VM.EXPIRE_DATE) AS REMAINDAY
+		FROM LICENSE L
+		INNER JOIN PRODUCT P
+		ON L.PRODUCT_NO = P.PRODUCT_NO
+		INNER JOIN VERSION_MANAGEMENT VM
+		ON L.VERSION_NO = VM.VERSION_NO
+		WHERE L.CLIENT_NO = #{client_no }
+	</select>
+	
+	<select id="getUsingCount" parameterType="map" resultType="map">
+		SELECT P.PRODUCT_NAME
+			 , UP.COUNT
+		FROM PRODUCT P,(SELECT PRODUCT_NO
+							 , COUNT(*) AS COUNT
+		                FROM USE_PRODUCT
+		                WHERE CLIENT_NO = #{client_no }
+		                GROUP BY PRODUCT_NO) UP
+		WHERE UP.PRODUCT_NO = P.PRODUCT_NO
+	</select>
+	
+	
+<!--                                                       	insert -->
+	<insert id="insert" parameterType="map">
+			INSERT INTO PRODUCT (PRODUCT_NO
+							  ,  PRODUCT_NAME
+							  ,  PRODUCT_NOTE
+							  )
+				VALUES (product_seq.nextval
+					, #{product_name}
+					, #{product_note}
+				)
+	</insert>
+	
+	<insert id="insertVersion" parameterType="map">
+			INSERT INTO VERSION_MANAGEMENT (VERSION_NO
+										  , EXPIRE_DATE
+										  , VERSION
+										  , PRODUCT_NO
+										  , VERSION_NOTE
+										  , VERSION_KIND
+										   )
+					VALUES (VERSION_SEQ.NEXTVAL
+					    , TO_DATE(#{expire_date},'YYYY-MM-DD HH24:MI:SS')
+						, #{version}
+						, #{product_no}
+						, #{version_note}
+						, #{version_kind}
+						    )
+	</insert>
+	
+	
+	<insert id="useProductInsert" parameterType="map">
+		INSERT INTO USE_PRODUCT (USE_NO
+							   , CLIENT_NO
+							   , PRODUCT_NO)
+		VALUES (USE_PRODUCT_SEQ.NEXTVAL
+			  , #{client_no }
+			  , #{product_no })
+	</insert>
+	<insert id="licenseInsert" parameterType="map">
+		INSERT INTO LICENSE (LICENSE_NO
+						   , LICENSE_KEY
+						   , LICENSE_REG_DATE
+						   , LICENSE_USE
+						   , CLIENT_NO
+						   , PRODUCT_NO
+						   , VERSION_NO)
+		VALUES (LICENSE_SEQ.NEXTVAL
+			  , #{license_key }
+			  , TO_DATE(#{license_reg_date },'YYYY-MM-DD HH24:MI:SS')
+			  , 0
+			  , #{client_no }
+			  , #{product_no }
+			  , #{version_no })
+	</insert>
+	
+	
+	
+	
+<!-- 															delete -->
+	<delete id="deleteVersion">
+			DELETE FROM VERSION_MANAGEMENT 
+			WHERE VERSION_NO = #{version_no}
+	
+	</delete>
+	
+	<delete id="deleteUseProduct">
+		DELETE FROM USE_PRODUCT 
+		WHERE USE_NO = #{pNo}
+	</delete>
+	
+	<delete id="deleteLicense">
+		DELETE FROM LICENSE
+		WHERE LICENSE_NO = #{lNo}
+	</delete>
+	
+	
+	<!-- 															update -->
+	
+	<update id="updateVersion">
+			UPDATE VERSION_MANAGEMENT
+			SET VERSION_KIND = #{version_kind}
+			  , VERSION_NOTE = #{version_note}
+			  , EXPIRE_DATE = TO_DATE(#{expire_date},'YYYY-MM-DD HH24:MI:SS')
+			WHERE VERSION = #{version}
+	</update>
+	
+	<update id="dataModify">
+		UPDATE LICENSE
+		SET LICENSE_REG_DATE = TO_DATE(#{license_reg_date },'YYYY-MM-DD HH24:MI:SS')
+		  , LICENSE_KEY = #{license_key }
+		  , VERSION_NO = #{version_no }
+		WHERE LICENSE_NO = #{license_no }
+	</update>
+	
+</mapper>

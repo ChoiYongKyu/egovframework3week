@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.VacationMapper">
+    <insert id="insert">
+        <selectKey keyProperty="vacNo" order="AFTER" resultType="int">
+            SELECT VAC_SEQ.CURRVAL FROM DUAL
+        </selectKey>
+        INSERT INTO VACATION ( VAC_NO
+                             , MEM_NO
+                             , MEM_DEPT
+                             , MEM_GRADE
+                             , MEM_TEL
+                             , VAC_TYPE
+                             , VAC_START_DT 
+                             , VAC_END_DT
+                             , VAC_DAYS
+                             , VAC_REASON
+                             , REG_DTM
+                             , REG_NO
+                             , MOD_DTM
+                             , MOD_NO
+                             , DEL_YN
+                             )
+                      VALUES ( VAC_SEQ.NEXTVAL
+                             , #{memNo}
+                             , #{memDept}
+                             , #{memGrade}
+                             , #{memTel}
+                             , #{vacType}
+                             , #{vacStartDt} 
+                             , #{vacEndDt}
+                             , #{vacDays}
+                             , #{vacReason}
+                             , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                             , #{sesMemNo}
+                             , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                             , #{sesMemNo}
+                             , 'N'
+                             )
+    </insert>
+
+    <update id="update">
+        UPDATE VACATION SET MEM_TEL = #{memTel}
+                          , VAC_TYPE = #{vacType}
+                          , VAC_START_DT = #{vacStartDt}
+                          , VAC_END_DT = #{vacEndDt}
+                          , VAC_DAYS = #{vacDays}
+                          , VAC_REASON = #{vacReason}
+                          , MOD_DTM = TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                          , MOD_NO = #{sesMemNo}
+                      WHERE DEL_YN = 'N'
+                        AND VAC_NO = #{vacNo}
+                        AND MEM_NO = #{sesMemNo}
+    </update>
+
+    <update id="delete">
+        UPDATE VACATION SET DEL_YN = 'Y'
+                          , MOD_DTM = TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                          , MOD_NO = #{sesMemNo}
+                      WHERE DEL_YN = 'N'
+                        AND VAC_NO = #{vacNo}
+                        AND MEM_NO = #{sesMemNo}
+    </update>
+
+    <sql id="vacationQuery">
+        SELECT VAC.VAC_NO
+             , VAC.MEM_NO
+             , MBR.MEM_NAME
+             , MBR.MEM_ID
+             , VAC.MEM_DEPT
+             , MEM_DEPT_CODE.COMMON_CODE_VALUE  AS MEM_DEPT_NM
+             , VAC.MEM_GRADE
+             , MEM_GRADE_CODE.COMMON_CODE_VALUE AS MEM_GRADE_NM
+             , VAC.MEM_TEL
+             , VAC.VAC_TYPE
+             , VAC_TYPE_CODE.COMMON_CODE_VALUE  AS VAC_TYPE_NM
+             , VAC.VAC_START_DT
+             , VAC.VAC_END_DT
+             , VAC.VAC_DAYS
+             , VAC.VAC_REASON
+             , VAC.REG_DTM
+             , REG_MBR.MEM_NAME                 AS REG_NM
+             , VAC.MOD_DTM
+             , MOD_MBR.MEM_NAME                 AS MOD_NM
+             , APRV.APRV_LNKG_CLSF
+             , APRV.APRV_NO
+             , APRV.APRV_TN
+             , APRV.APRV_STAT
+             , APRV_STAT_CODE.COMMON_CODE_VALUE AS APRV_STAT_NM
+          FROM VACATION VAC
+
+    INNER JOIN APPROVAL APRV
+            ON APRV.APRV_LNKG_TBL_PK = VAC.VAC_NO
+           AND APRV.APRV_LNKG_CLSF = 'VACATION'
+           AND APRV.APRV_TN = ( SELECT MAX (TMP.APRV_TN)
+                                  FROM APPROVAL TMP
+                                 WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+                                   AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+                            )
+
+    INNER JOIN MEMBER MBR
+            ON MBR.MEM_NO = VAC.MEM_NO
+
+    INNER JOIN COMMON_CODE MEM_DEPT_CODE
+            ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+           AND MEM_DEPT_CODE.COMMON_CODE_KEY = VAC.MEM_DEPT
+
+    INNER JOIN COMMON_CODE MEM_GRADE_CODE
+            ON MEM_GRADE_CODE.COMMON_CODE = 'MEM_GRADE'
+           AND MEM_GRADE_CODE.COMMON_CODE_KEY = VAC.MEM_GRADE
+
+    INNER JOIN COMMON_CODE VAC_TYPE_CODE
+            ON VAC_TYPE_CODE.COMMON_CODE = 'VAC_TYPE'
+           AND VAC_TYPE_CODE.COMMON_CODE_KEY = VAC.VAC_TYPE
+
+    INNER JOIN COMMON_CODE APRV_STAT_CODE
+            ON APRV_STAT_CODE.COMMON_CODE = 'APRV_STAT'
+           AND APRV_STAT_CODE.COMMON_CODE_KEY = APRV.APRV_STAT
+
+    INNER JOIN MEMBER REG_MBR
+            ON REG_MBR.MEM_NO = VAC.REG_NO
+
+    INNER JOIN MEMBER MOD_MBR
+            ON MOD_MBR.MEM_NO = VAC.MOD_NO
+
+         WHERE VAC.DEL_YN = 'N'
+         
+	     <!-- 상신취소 및 결재완료 보이지 않기 -->
+	        AND APRV.APRV_STAT != 'AS03' 
+			AND APRV.APRV_STAT != 'AS05'
+    </sql>
+   
+    <select id="selectList" resultType="nosMap">
+        <include refid="vacationQuery"/>
+      ORDER BY VAC.VAC_NO DESC
+    </select>
+
+    <select id="selectOne" resultType="nosMap">
+        <include refid="vacationQuery"/>
+           AND VAC.VAC_NO = #{vacNo}
+    </select>
+    
+    <select id="allListForCalendar" resultType="NosMap">
+		
+		SELECT V.VAC_NO AS id
+			 , CONCAT(CONCAT(CONCAT(CONCAT(M.MEM_NAME, ' '), CB.COMMON_CODE_VALUE ), ' - '),CC.COMMON_CODE_VALUE) AS text
+		 	 , TO_CHAR(TO_DATE(V.VAC_START_DT,'yyyy-mm-dd hh24:mi:ss'),'mm/dd/yyyy') AS startdT
+			 , TO_CHAR(TO_DATE(V.VAC_END_DT,'yyyy-mm-dd hh24:mi:ss')+1,'mm/dd/yyyy') AS enddT
+		FROM VACATION V
+		LEFT JOIN COMMON_CODE CC
+		ON V.VAC_TYPE = CC.COMMON_CODE_KEY
+    	LEFT JOIN COMMON_CODE CB
+		ON V.MEM_GRADE = CB.COMMON_CODE_KEY AND CB.COMMON_CODE = 'MEM_GRADE'
+	    LEFT JOIN MEMBER M
+	    ON M.MEM_NO = V.MEM_NO
+	    LEFT JOIN APPROVAL A
+	    ON A.APRV_LNKG_TBL_PK = V.VAC_NO
+	    WHERE A.APRV_STAT = 'AS05'
+    	
+	</select>
+    
+</mapper>

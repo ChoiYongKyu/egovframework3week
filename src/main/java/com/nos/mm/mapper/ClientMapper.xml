@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.ClientMapper">
+<resultMap type="map" id="clobinvert">
+	<result property="CLIENT_NOTE" column="CLIENT_NOTE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="REQ_NOTE" column="REQ_NOTE" jdbcType="CLOB" javaType="java.lang.String"/>
+<!-- 	<result property="LICENSE_KEY" column="LICENSE_KEY" jdbcType="CLOB" javaType="java.lang.String"/> -->
+</resultMap>
+
+	<select id="getList" parameterType="map" resultType="map">
+	<!-- 
+		SELECT C.CLIENT_NO
+			 , C.CLIENT_NAME
+			 , C.CLIENT_ADDR
+	    	 , R.REQ_NAME
+	     	 , R.REQ_RANK
+	     	 , R.REQ_PHONE
+		FROM CLIENT C , REQUESTOR R
+		WHERE C.CLIENT_NO = R.CLIENT_NO AND R.REQ_NO IN 
+			(SELECT MIN(REQ_NO) FROM REQUESTOR GROUP BY CLIENT_NO)
+		ORDER BY C.CLIENT_NO ASC -->
+		
+		SELECT  *
+		FROM (SELECT ROWNUM AS RNUM, A.*,
+		COUNT(*) OVER() COUNT
+		        FROM (SELECT  C.CLIENT_NO
+					 		, C.CLIENT_NAME
+					 		, C.CLIENT_ADDR
+			    	 		, RR.REQ_NAME
+			     	 		, RR.REQ_RANK
+			     	 		, RR.REQ_PHONE
+				FROM CLIENT C , REQUESTOR R, (SELECT * FROM REQUESTOR WHERE REQ_REPRESENTATIVE = 1) RR
+				WHERE C.CLIENT_NO = R.CLIENT_NO AND R.REQ_NO 
+				IN (SELECT MIN(REQ_NO) FROM REQUESTOR GROUP BY CLIENT_NO)
+				AND C.CLIENT_NO = RR.CLIENT_NO
+		      	<if test="searchText != null"> <!-- searchText가 null일때 에러 발생함 그래서 if문 추가 -->
+		       		<choose>
+		 				<when test="searchCategory == 1">
+		 					AND CLIENT_NAME LIKE '%' || #{searchText} || '%'
+		 				</when>
+		 				<when test="searchCategory == 2">
+		 					AND REQ_NAME LIKE '%' || #{searchText} || '%'
+		 				</when>
+		 			</choose>
+		 		</if>
+		      ORDER BY CLIENT_NAME ASC) A)
+		      <![CDATA[
+		     	WHERE RNUM >= ((#{page } - 1) * #{list_size }) + 1 AND RNUM <= #{page } * #{list_size }
+		      ]]>
+		       ORDER BY RNUM
+		      
+	</select>
+	<select id="getWorkScope" resultType="map">
+		SELECT COMMON_CODE_KEY
+			 , COMMON_CODE_VALUE
+		FROM COMMON_CODE
+		WHERE COMMON_CODE LIKE 'WORK_SCOPE'
+	</select>
+	
+<!-- 	<select id="searchList" parameterType="map" resultType="map"> -->
+<!-- 		SELECT C.CLIENT_NO -->
+<!-- 			 , C.CLIENT_NAME -->
+<!-- 			 , C.CLIENT_ADDR -->
+<!-- 	    	 , R.REQ_NAME -->
+<!-- 	     	 , R.REQ_RANK -->
+<!-- 	     	 , R.REQ_PHONE -->
+<!-- 		FROM CLIENT C, REQUESTOR R -->
+<!-- 		WHERE C.CLIENT_NO = R.CLIENT_NO AND R.REQ_NO IN  -->
+<!-- 			(SELECT MIN(REQ_NO) FROM REQUESTOR GROUP BY CLIENT_NO) -->
+<!-- 			<choose> -->
+<!-- 				<when test="searchCategory == 1"> -->
+<!-- 					AND C.CLIENT_NAME LIKE '%' || #{searchText} || '%' -->
+<!-- 				</when> -->
+<!-- 				<when test="searchCategory == 2"> -->
+<!-- 					AND R.REQ_NAME LIKE '%' || #{searchText} || '%' -->
+<!-- 				</when> -->
+<!-- 			</choose> -->
+<!-- 		ORDER BY C.CLIENT_NO ASC -->
+<!-- 	</select> -->
+	
+	<select id="getDetail" parameterType="int" resultMap="clobinvert">
+        SELECT C.CLIENT_NO
+			 , C.CLIENT_NAME
+			 , C.CLIENT_ADDR
+			 , C.CLIENT_START_DATE
+			 , C.CLIENT_END_DATE
+			 , C.CLIENT_SUP_TIMES
+			 , C.CLIENT_NOTE
+	         , R.REQ_NAME
+	         , R.REQ_RANK
+	         , R.REQ_PHONE
+	         , R.REQ_EMAIL
+	         , R.REQ_NO
+	         , R.REQ_REPRESENTATIVE
+		FROM CLIENT C 
+		JOIN REQUESTOR R
+		ON C.CLIENT_NO = R.CLIENT_NO
+		WHERE C.CLIENT_NO = #{client_no}
+	      AND R.REQ_NO = (SELECT REQ_NO
+			  	    	  FROM REQUESTOR 
+				   	 	  WHERE CLIENT_NO = #{client_no} AND REQ_REPRESENTATIVE = 1
+	    			)
+	</select>
+	
+	<select id="getDetailWork" resultType="map" parameterType="map">
+		SELECT W.WORK_SCOPE_NO
+	    FROM WORK W
+	    WHERE W.CLIENT_NO = #{client_no}
+	</select>
+	
+	<select id="getProductList" resultType="map">
+		SELECT PRODUCT_NO
+		     , PRODUCT_NAME 
+		FROM PRODUCT
+	</select>
+	
+	<select id="getFileList" resultType="map" parameterType="map">
+		SELECT UPLOAD_NO
+			 , UPLOAD_BEFORE
+			 , UPLOAD_AFTER
+			 , TO_CHAR(UPLOAD_TIME,'YY/MM/DD HH24:MI:SS') AS UPLOAD_TIME
+		FROM UPLOAD
+		WHERE UPLOAD_TABLE = 'CLIENT'
+		  AND UPLOAD_CONNECT = #{client_no}
+	</select>
+	
+	<select id="getReqList" parameterType="int" resultMap="clobinvert">
+		SELECT COUNT(*) OVER () ROW_COUNT,
+			   REQ_NO,
+		       REQ_NAME,
+		       REQ_RANK,
+		       REQ_EMAIL,
+		       REQ_PHONE,
+		       REQ_NOTE
+		FROM REQUESTOR
+		WHERE CLIENT_NO = #{no }
+	</select>
+	
+	<insert id="insert" parameterType="map">
+		INSERT INTO CLIENT (CLIENT_NO
+		                  , CLIENT_NAME
+		                  , CLIENT_ADDR
+		                  , CLIENT_START_DATE
+		                  , CLIENT_END_DATE
+		                  , CLIENT_SUP_TIMES
+		                  , CLIENT_NOTE
+		                  )
+			VALUES (client_seq.nextval
+			    , #{client_name}
+			    , #{client_addr}
+			    , #{client_start_date}
+			    , #{client_end_date}
+			    , #{client_sup_times}
+			    , #{client_note})
+		<selectKey keyProperty="client_no" order="AFTER" resultType="integer">
+			SELECT CLIENT_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<insert id="reqInsert" parameterType="map">
+		INSERT INTO REQUESTOR ( REQ_NO
+							 , REQ_NAME
+							 , REQ_PHONE
+							 , REQ_EMAIL
+							 , REQ_REPRESENTATIVE
+							 , CLIENT_NO)
+					VALUES ( req_seq.nextval
+						  ,	#{req_name}
+						  , #{req_phone}
+						  , #{req_email}
+						  , 1
+						  , #{client_no} )
+	</insert>
+	<insert id="wsInsert" parameterType="map">
+		INSERT INTO WORK (WORK_NO
+                		, WORK_SCOPE_NO
+                		, CLIENT_NO)
+	            VALUES (work_seq.nextval
+	                , #{param1 }
+	                , #{param2 })    
+	</insert>
+	
+<!-- 	<insert id="useProductInsert" parameterType="map"> -->
+<!-- 		INSERT INTO USE_PRODUCT (USE_NO -->
+<!-- 	                   		   , CLIENT_NO -->
+<!-- 	                   		   , PRODUCT_NO) -->
+<!-- 		VALUES (up_seq.nextval -->
+<!--       		 , #{client_no } -->
+<!--       		 , #{product_no_1 }) -->
+<!-- 	</insert> -->
+<!-- 	<insert id="licenseInsert" parameterType="map"> -->
+<!-- 		INSERT INTO LICENSE (LICENSE_NO -->
+<!-- 		                   , LICENSE_KEY -->
+<!-- 		                   , LICENSE_REG_DATE -->
+<!-- 		                   , LICENSE_USE -->
+<!-- 		                   , CLIENT_NO -->
+<!-- 		                   , PRODUCT_NO -->
+<!-- 		                   , VERSION_NO) -->
+<!-- 		VALUES (license_seq.nextval -->
+<!-- 		      , #{license_key_1 } -->
+<!-- 		      , to_date(#{license_register_date_1 },'yyyy-mm-dd hh24:mi:ss') -->
+<!-- 		      , 0 -->
+<!-- 		      , #{client_no } -->
+<!-- 		      , #{product_no_1 } -->
+<!-- 		      , #{product_ver_1 }) -->
+<!-- 	</insert> -->
+	
+	
+	<update id="clientUpdate" parameterType="map">
+		UPDATE CLIENT SET
+			   CLIENT_ADDR = #{client_addr}
+			 , CLIENT_START_DATE = #{client_start_date}
+			 , CLIENT_END_DATE = #{client_end_date}
+			 , CLIENT_SUP_TIMES = #{client_sup_times}
+			 , CLIENT_NOTE = #{client_note}
+		WHERE CLIENT_NO = #{client_no }
+	</update>
+	
+	<update id="reqUpdate" parameterType="map">
+		UPDATE REQUESTOR SET
+						 REQ_NAME = #{req_name },
+			             REQ_PHONE = #{req_phone },
+			             REQ_EMAIL = #{req_email }
+     	WHERE CLIENT_NO = #{client_no }
+	</update>
+	
+	<update id="reqInfoModify" parameterType="map">
+		UPDATE REQUESTOR
+		   SET REQ_NAME = #{req_name}
+		     , REQ_RANK = #{req_rank}
+		     , REQ_EMAIL = #{req_email}
+		     , REQ_PHONE = #{req_phone}
+		     , REQ_NOTE = #{req_note}
+		WHERE REQ_NO = #{req_no}
+	</update>
+	
+ 	<!-- <update id="wsUpdate" parameterType="int">
+		UPDATE WORK
+     	SET WORK_SCOPE_NO = #{param1 }
+    	WHERE CLIENT_NO = #{param2 }
+	</update> -->
+	
+	<delete id="wsUpdate" parameterType="int">
+		DELETE 
+	    FROM WORK
+	    WHERE CLIENT_NO = #{client_no }
+	</delete>
+	<!-- <insert id="wsUpdate" parameterType="map">
+	INSERT INTO WORK (WORK_NO
+               		, WORK_SCOPE_NO
+               		, CLIENT_NO)
+            VALUES (work_seq.nextval
+                , #{param1 }
+                , #{param2 }) 
+	</insert> -->
+	
+	<delete id="doDelete">
+		DELETE
+		FROM CLIENT
+		WHERE CLIENT_NO = #{client_no }
+	</delete>
+	
+	<delete id="rowDelete">
+		DELETE
+		FROM REQUESTOR
+		WHERE REQ_NO = #{rNo }
+	</delete>
+	
+	<insert id="reqInfoInsert" parameterType="map">
+		INSERT INTO REQUESTOR (REQ_NO
+                     , REQ_NAME
+                     , REQ_RANK
+                     , REQ_EMAIL
+                     , REQ_PHONE
+                     , REQ_REPRESENTATIVE
+                     , REQ_NOTE
+                     , CLIENT_NO )
+              VALUES ( req_seq.nextval
+                     , #{req_name }
+                     , #{req_rank }
+                     , #{req_email }
+                     , #{req_phone }
+                     , 0
+                     , #{req_note }
+                     , #{client_no })
+	</insert>
+	
+<!-- 	<select id="getVersion" parameterType="map" resultType="map"> -->
+<!-- 		SELECT VERSION_NO -->
+<!-- 			 , VERSION -->
+<!-- 		FROM VERSION_MANAGEMENT -->
+<!-- 		WHERE PRODUCT_NO = #{productNo } -->
+<!-- 	</select> -->
+	<update id="changeRep" parameterType="map">
+		UPDATE REQUESTOR SET
+			   REQ_REPRESENTATIVE = #{req_rep}
+		WHERE REQ_NO = #{req_no }
+	</update>
+	<update id="initRep">
+		UPDATE REQUESTOR SET
+			   REQ_REPRESENTATIVE = 0
+		WHERE CLIENT_NO = #{client_no}
+	</update>
+</mapper>

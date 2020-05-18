@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.DecidingOfficerMapper">
+    <insert id="insert">
+        <selectKey keyProperty="dcofNo" order="AFTER" resultType="int">
+            SELECT DCOF_SEQ.CURRVAL FROM DUAL
+        </selectKey>
+        INSERT INTO DECIDING_OFFICER ( DCOF_NO
+                                     , APRV_NO
+                                     , APRV_SORT
+                                     , MEM_NO
+                                     , DOCF_STAT
+                                     )
+                              VALUES ( DCOF_SEQ.NEXTVAL
+                                     , #{aprvNo}
+                                     , #{aprvSort}
+                                     , #{memNo}
+                                     , #{docfStat}
+                                     )
+    </insert>
+
+    <select id="selectList" resultType="nosMap">
+        SELECT DCOF.DCOF_NO
+             , DCOF.APRV_NO
+             , DCOF.APRV_SORT
+             , DCOF.MEM_NO
+             , MBR.MEM_NAME
+             , MEM_GRADE_CODE.COMMON_CODE_VALUE AS MEM_GRADE_NM
+             , DCOF.DOCF_STAT
+             , DOCF_STAT_CODE.COMMON_CODE_VALUE AS DOCF_STAT_NM
+             , DCOF.APRV_RMRK
+             , SIGN.UPLOAD_AFTER AS SIGN_IMG
+          FROM DECIDING_OFFICER DCOF
+
+    INNER JOIN MEMBER MBR
+            ON MBR.MEM_NO = DCOF.MEM_NO
+
+    INNER JOIN COMMON_CODE DOCF_STAT_CODE
+            ON DOCF_STAT_CODE.COMMON_CODE = 'DOCF_STAT'
+           AND DOCF_STAT_CODE.COMMON_CODE_KEY = DCOF.DOCF_STAT
+
+     LEFT JOIN COMMON_CODE MEM_GRADE_CODE
+            ON MEM_GRADE_CODE.COMMON_CODE = 'MEM_GRADE'
+           AND MEM_GRADE_CODE.COMMON_CODE_KEY = MBR.MEM_GRADE
+
+     LEFT JOIN UPLOAD SIGN
+            ON SIGN.UPLOAD_CONNECT = DCOF.MEM_NO
+           AND SIGN.UPLOAD_TABLE = 'member'
+
+         WHERE DCOF.APRV_NO = #{aprvNo}
+
+      ORDER BY DCOF.APRV_SORT ASC
+    </select>
+
+    <sql id="decidingOfficerCntQuery">
+        SELECT COUNT(1)
+          FROM DECIDING_OFFICER
+         WHERE APRV_NO = #{aprvNo}
+    </sql>
+
+    <select id="selectAllCnt" resultType="int">
+        <include refid="decidingOfficerCntQuery"/>
+    </select>
+
+    <select id="selectAprvCnt" resultType="int">
+        <include refid="decidingOfficerCntQuery"/>
+          AND DOCF_STAT = 'DS02'
+    </select>
+
+    <delete id="delete">
+        DELETE FROM DECIDING_OFFICER WHERE APRV_NO = #{aprvNo}
+    </delete>
+
+    <update id="update">
+        UPDATE DECIDING_OFFICER SET DOCF_STAT= #{docfStat}
+                                  , APRV_RMRK = #{aprvRmrk}
+                                  , MOD_DTM = TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                              WHERE DOCF_STAT = 'DS01'
+                                AND DCOF_NO = #{dcofNo}
+                                AND APRV_NO = #{aprvNo}
+                                AND MEM_NO = #{sesMemNo}
+    </update>
+
+    <insert id="insertCopy">
+        INSERT INTO DECIDING_OFFICER ( DCOF_NO
+                                     , APRV_NO
+                                     , APRV_SORT
+                                     , MEM_NO
+                                     , DOCF_STAT
+                              ) SELECT DCOF_SEQ.NEXTVAL
+                                     , #{aprvNoNew}
+                                     , APRV_SORT
+                                     , MEM_NO
+                                     , 'DS01'
+                                  FROM DECIDING_OFFICER
+                                 WHERE APRV_NO = #{aprvNoOld}
+    </insert>
+    
+    
+    <select id="selectOneNowDecidingOfficerId" resultType="string">
+        SELECT MEM_ID
+          FROM ( SELECT MBR.MEM_ID
+                   FROM APPROVAL APRV
+
+             INNER JOIN DECIDING_OFFICER DEOF
+                     ON DEOF.APRV_NO = APRV.APRV_NO
+                    AND DEOF.DOCF_STAT = 'DS01'
+
+             INNER JOIN MEMBER MBR
+                     ON MBR.MEM_NO = DEOF.MEM_NO
+
+                  WHERE APRV.APRV_NO = #{aprvNo}
+
+               ORDER BY APRV_SORT ASC
+             ) WHERE ROWNUM = 1
+    </select>
+    
+    <sql id="decidingOfficerIdQuery">
+        SELECT MBR.MEM_ID
+          FROM APPROVAL APRV
+
+    INNER JOIN DECIDING_OFFICER DEOF
+            ON DEOF.APRV_NO = APRV.APRV_NO
+           AND DEOF.DOCF_STAT = 'DS02'
+
+    INNER JOIN MEMBER MBR
+            ON MBR.MEM_NO = DEOF.MEM_NO
+
+         WHERE APRV.APRV_NO = #{aprvNo}
+    </sql>
+
+    <select id="selectListDecidingOfficerId" resultType="string">
+        <include refid="decidingOfficerIdQuery"/>
+
+      ORDER BY APRV_SORT ASC
+    </select>
+
+    <select id="selectListDecidingOfficerIdLastException" resultType="string">
+        <include refid="decidingOfficerIdQuery"/>
+           AND DEOF.APRV_SORT <![CDATA[<]]> ( SELECT MAX(TMP.APRV_SORT)
+                                                FROM DECIDING_OFFICER TMP
+                                               WHERE TMP.APRV_NO = #{aprvNo}
+                                          )
+      ORDER BY APRV_SORT ASC
+    </select>
+</mapper>

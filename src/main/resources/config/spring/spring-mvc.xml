@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:sec="http://www.springframework.org/schema/security" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans   
+    						http://www.springframework.org/schema/beans/spring-beans.xsd
+ 							http://www.springframework.org/schema/context   
+ 							http://www.springframework.org/schema/context/spring-context.xsd
+ 							http://www.springframework.org/schema/mvc
+							http://www.springframework.org/schema/mvc/spring-mvc.xsd
+ 							http://www.springframework.org/schema/aop 
+       						http://www.springframework.org/schema/aop/spring-aop.xsd
+       						http://www.springframework.org/schema/security
+    						http://www.springframework.org/schema/security/spring-security.xsd">
+
+	<!-- servlet-context : 뷰 <-> 컨트롤러 설정 -->
+
+	<!-- AspectJ -->
+	<!-- @Aspect 어노테이션을 통해서 bean을 등록시켜주는 역할 -->
+	<aop:aspectj-autoproxy />
+
+	<!-- MVC에 필요한 몇가지 빈들을 자동 등록 -->
+	<mvc:annotation-driven>
+		<mvc:message-converters>
+			<bean class="org.springframework.http.converter.StringHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>text/html; charset=UTF-8</value>
+					</list>
+				</property>
+			</bean>
+			<bean
+				class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>text/html; charset=UTF-8</value>
+						<value>application/json; charset=UTF-8</value>
+					</list>
+				</property>
+			</bean>
+		</mvc:message-converters>
+	</mvc:annotation-driven>
+
+	<!-- 어노테이션 설정 읽기 -->
+	<!-- 해당 패키지에서 @Controller 어노테이션을 읽고 빈 생성 -->
+	<context:component-scan base-package="com.nos.mm"
+		use-default-filters="false">
+		<context:include-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+
+	<!-- 맵핑 참고 http://egloos.zum.com/ultteky/v/10526387 -->
+	<!-- 맵핑 방식 1 -->
+	<!-- HandlerMapping은 클라이언트의 요청을 어떤 Controller가 수행할 지의 여부를 결정 -->
+	<!-- BeanNameUrlHandlerMapping은 요청 URL와 동일한 이름을 갖는 Controller 빈으로 하여금 클라이언트의 
+		요청을 처리 -->
+	<bean
+		class="org.springframework.web.servlet.handler.BeanNameUrlHandlerMapping" />
+	<!-- Static View Controller Configuration -->
+	<bean
+		class="org.springframework.web.servlet.mvc.SimpleControllerHandlerAdapter" />
+
+	<!-- 맵핑 방식 2 -->
+	<!-- js, css 같은 파일을 dispatcher가 아닌 default servlet으로 보내주기 위해서... -->
+	<!-- URL 맵핑 (참고? http://clearpal7.blogspot.kr/2016/07/mvc.html, http://lng1982.tistory.com/97) -->
+	<mvc:default-servlet-handler />
+
+	<!-- <bean id="staticViewController" class="com.CustomEdit.core.common.mvc.StaticViewController" 
+		/> <bean id="staticHandlerMapping" class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping" 
+		p:order="1"> <property name="mappings"> <value>/jsp/**/*=staticViewController</value> 
+		</property> </bean> -->
+	<!-- <bean id="beanViewResolver" class="org.springframework.web.servlet.view.BeanNameViewResolver"> 
+		<property name="order" value="3" /> </bean> -->
+
+	<!-- Multipart Configuration 104857600 -->
+	<!-- 파일업로드 -->
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<property name="resolveLazily" value="true" />
+		<property name="maxUploadSize" value="1048576000" /><!-- 1000MB -->
+	</bean>
+
+	<!-- localeResolver Configuration -->
+	<!-- localeResolver에서 다국어처리 방법을 선택 -->
+	<!-- AceeptHeaderLocaleResolver가 브라우저의 설정된 언어값으로 읽어들여 처리(디폴트값, 변경 불가) -->
+	<!-- SessionLocaleResolver request가 가지고 있는 session으로 부터 locale정보를 가져옴(값 
+		없을시 defaultlocale) -->
+	<!-- CookieLocaleResolver는 이름에서 알수있듯이 언어를 변경하고 쿠키에 값을 저장 -->
+	<bean id="localeResolver"
+		class="org.springframework.web.servlet.i18n.SessionLocaleResolver">
+		<property name="defaultLocale" value="" />
+	</bean>
+	<!-- <mvc:interceptor> -->
+	<!-- <mvc:mapping path="/**" /> -->
+	<!-- </mvc:interceptor> -->
+
+	<!-- 인터셉터 -->
+	<mvc:interceptors>
+		<!-- 사용자의 그룹을 세션에 저장 -->
+		<bean id="myGroupInterceptor" class="com.nos.mm.interceptor.MyGroupInterceptor" />
+		<!-- ?lang=ko 이렇게 url을 통해서 언어변경 가능하게 해줌 -->
+		<bean id="localeChangeInterceptor"
+			class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor">
+			<property name="paramName" value="language" />
+		</bean>
+	</mvc:interceptors>
+
+
+	<!-- 기본 뷰 -->
+	<!-- 경로설정 -->
+	<bean id="viewResolver"
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/view/" />
+		<property name="suffix" value=".jsp" />
+	</bean>
+
+	<!-- 특정 URL에 대해 정적 페이지를 제공하는 기능 -->
+	<!-- <mvc:view-controller path="/customer/registForm.do" view-name="customer/registForm"/> 
+		<mvc:view-controller path="/customer/searchUserPop.do" view-name="customer/searchUserPop"/> -->
+
+	<!-- 업로드 파일 상대경로 설정 -->
+	<mvc:resources location="file:C:/iw-ojt/download/"
+		mapping="/download/**" />
+
+
+</beans>

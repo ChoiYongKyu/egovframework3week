@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.FileMapper">
+	
+	<select id="getMobileFile" resultType="map" parameterType="map">
+		select * from (SELECT UPLOAD_BEFORE
+			 , UPLOAD_AFTER
+		FROM UPLOAD
+		WHERE UPLOAD_CONNECT = 49 ORDER BY UPLOAD_BEFORE deSC)
+    	where rownum =1
+	</select>
+	
+	<select id="getSignFile" resultType="map" parameterType="int">
+		select * from (SELECT *
+		FROM UPLOAD
+		WHERE UPLOAD_CONNECT = #{mem_no } ORDER BY UPLOAD_NO deSC)
+    	where rownum =1
+	</select>
+	
+	<select id="getFile" resultType="map" parameterType="map">
+		SELECT UPLOAD_BEFORE
+			 , UPLOAD_AFTER
+		FROM UPLOAD
+		WHERE UPLOAD_NO = #{no }
+	</select>
+	
+	
+	<delete id="deleteFile" parameterType="map">
+		DELETE FROM UPLOAD
+		WHERE UPLOAD_NO = #{no }
+	</delete>
+	
+	<insert id="insertFile" parameterType="map">
+		INSERT INTO UPLOAD (UPLOAD_NO
+						  , UPLOAD_BEFORE
+						  , UPLOAD_AFTER
+						  , UPLOAD_CONNECT
+						  , UPLOAD_TABLE
+						  , UPLOAD_TIME)
+		VALUES (up_seq.nextval
+		      , #{upload_before}
+		      , #{upload_after}
+		      , #{upload_connect}
+		      , #{upload_table}
+		      , SYSDATE
+		)
+	
+	</insert>
+</mapper>

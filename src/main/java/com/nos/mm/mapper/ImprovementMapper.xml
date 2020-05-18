@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.ImprovementMapper">
+
+<resultMap type="map" id="clobinvert">
+	<result property="IMPROVEMENT_CONTENT" column="IMPROVEMENT_CONTENT" jdbcType="CLOB" javaType="java.lang.String"/>
+</resultMap>
+
+	<select id="getFileList" resultType="map" parameterType="map">
+	<![CDATA[
+		SELECT UPLOAD_NO
+			 , UPLOAD_BEFORE
+			 , UPLOAD_AFTER
+			 , TO_CHAR(UPLOAD_TIME,'yy-mm-dd hh24:mi:ss') AS UPLOAD_TIME 
+		FROM UPLOAD
+		WHERE UPLOAD_TABLE = 'IMPROVEMENT'
+		  AND UPLOAD_CONNECT = #{no}
+		  ]]>
+	</select>
+
+
+
+	<insert id="insert" parameterType="map">
+	
+		insert into improvement_requirement(IMPROVEMENT_NO
+                                 		 , IMPROVEMENT_TITLE
+                                 		 , IMPROVEMENT_CONTENT
+                                 		 , IMPROVEMENT_WRITE_DATE
+                                 		 , MEM_NO)
+		values(improvement_seq.nextval
+			 , #{improvement_title }
+			 , #{improvement_content }
+			 , sysdate
+			 , #{mem_no })
+		<selectKey keyProperty="improvement_no" order="AFTER" resultType="int">
+			SELECT IMPROVEMENT_SEQ.CURRVAL FROM DUAL
+		</selectKey> 
+		
+	</insert>
+	
+	<select id="getList" resultMap="clobinvert" parameterType="map">
+	<![CDATA[
+		SELECT *
+			FROM(SELECT A.*
+	        		  , COUNT(*) OVER() COUNT
+				      , ROWNUM AS RNUM
+			FROM (SELECT I.IMPROVEMENT_NO
+					   , I.IMPROVEMENT_TITLE
+				 	   , I.IMPROVEMENT_CONTENT
+				 	   , TO_CHAR(I.IMPROVEMENT_WRITE_DATE,'YY-MM-DD HH24:MI:SS') AS IMPROVEMENT_WRITE_DATE
+				 	   , M.MEM_NAME
+			FROM IMPROVEMENT_REQUIREMENT I
+			LEFT JOIN MEMBER M
+			ON I.MEM_NO = M.MEM_NO
+		]]>
+		<if test="searchText != null">
+			WHERE I.IMPROVEMENT_TITLE LIKE '%' || #{searchText } || '%'
+    		AND I.IMPROVEMENT_CONTENT LIKE '%' || #{searchText } || '%'
+		</if>
+		ORDER BY I.IMPROVEMENT_NO DESC) A)
+		<![CDATA[
+		     WHERE RNUM >= ((#{page } - 1) * #{list_size }) + 1 AND RNUM <= #{page } * #{list_size }
+		]]>
+	</select>
+	
+	<select id="getDetail" parameterType="int" resultMap="clobinvert">
+	<![CDATA[
+		SELECT I.IMPROVEMENT_NO
+			 , I.IMPROVEMENT_TITLE
+			 , I.IMPROVEMENT_CONTENT
+			 , TO_CHAR(I.IMPROVEMENT_WRITE_DATE,'YY-MM-DD HH24:MI:SS') AS IMPROVEMENT_WRITE_DATE
+			 , M.MEM_NAME	 
+		FROM IMPROVEMENT_REQUIREMENT I
+		LEFT JOIN MEMBER M
+		ON I.MEM_NO = M.MEM_NO
+		WHERE IMPROVEMENT_NO=#{no }
+		]]>
+	</select>
+	
+	<delete id="doDelete">
+	<![CDATA[
+		DELETE
+		FROM IMPROVEMENT_REQUIREMENT
+		WHERE IMPROVEMENT_NO = #{improvement_no }
+		]]>
+	</delete>
+	
+	<insert id="insertModify" parameterType="map">
+	<![CDATA[
+		UPDATE IMPROVEMENT_REQUIREMENT SET
+		                  IMPROVEMENT_TITLE = #{improvement_title },
+		                  IMPROVEMENT_CONTENT = #{improvement_content },
+		                  IMPROVEMENT_WRITE_DATE = SYSDATE
+		WHERE IMPROVEMENT_NO = #{improvement_no }
+		]]>
+	</insert>
+	
+	<select id="getNewImpNo" parameterType="int" resultMap="clobinvert">
+		<![CDATA[
+			SELECT LAST_NUMBER AS IMPROVEMENT_NO_NEXT
+		    FROM USER_SEQUENCES 
+		    WHERE SEQUENCE_NAME = UPPER('IMPROVEMENT_SEQ')
+		    
+		    
+		]]>
+		
+	</select>
+
+
+</mapper>

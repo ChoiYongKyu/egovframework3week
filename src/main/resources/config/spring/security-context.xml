@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+    xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+        
+    <!-- 검사 URL -->
+    <!-- 권한에 따른 접근 설정 -->
+    <http pattern="/js/**" security="none" />
+    <http pattern="/css/**" security="none" />
+    <http pattern="/img/**" security="none" />
+    <http pattern="/bootstrap/**" security="none" />
+    <http>
+     	
+        <intercept-url pattern="/" access="permitAll" />
+        <intercept-url pattern="/mobile" access="permitAll" />
+        <intercept-url pattern="/android" access="permitAll" />
+        <intercept-url pattern="/app" access="permitAll" />
+        <intercept-url pattern="/sendToken" access="permitAll" />
+        <intercept-url pattern="/join" access="permitAll" />
+        <intercept-url pattern="/find" access="permitAll" />
+        <intercept-url pattern="/check" access="permitAll" />
+        <intercept-url pattern="/download/*" access="permitAll" />
+        <intercept-url pattern="/google" access="permitAll" /> <!-- ajax용 경로도 뚫어줘야함... -->
+        <intercept-url pattern="/menu/**" access="hasRole('ADMIN')" />
+        <intercept-url pattern="/member_manage/**" access="hasRole('ADMIN')" />
+        <!-- <intercept-url pattern="/management/**" access="hasRole('ADMIN')" /> -->
+        <intercept-url pattern="/**" access="hasAnyRole('MEMBER, ADMIN')" />
+        
+        <!-- 로그인 -->
+        <form-login login-page="/"
+        			default-target-url="/home/chart"
+        			authentication-failure-url="/?error"
+        			username-parameter="mem_id"
+        			password-parameter="mem_pw" />
+        
+        <!-- 로그아웃 -->
+        <logout logout-url="/logout"
+        		logout-success-url="/?logoutSuccess" />
+        		
+        <!-- 접근 권한 업을 경우 이동하는 페이지 -->
+        <access-denied-handler error-page="/" />
+        
+        <!-- csrf 기능 OFF -->
+        <csrf disabled="true" />
+        
+        <headers>
+		  <frame-options policy="SAMEORIGIN" />
+			<hsts disabled="true"/>
+	</headers>
+    </http>
+    
+    <!--  provider  -->
+    <authentication-manager>
+        <authentication-provider user-service-ref="memberService">
+        	<!-- 암호화 -->
+        	<password-encoder ref="shaPWEncoder" />
+        </authentication-provider>
+    </authentication-manager>
+    
+    <beans:bean id="shaPWEncoder" class="com.nos.mm.util.ShaPWEncoder" />
+    <beans:bean id="memberService" class="com.nos.mm.service.MemberService" />
+    
+</beans:beans>

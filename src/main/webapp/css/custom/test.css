@@ -1,0 +1,154 @@
+/* * { -webkit-box-sizing:border-box; -moz-box-sizing:border-box; -ms-box-sizing:border-box; -o-box-sizing:border-box; box-sizing:border-box; } */
+
+/* html { width: 100%; height:100%; overflow:hidden; } */
+
+.login_form, .join_form, .modify_form, .find_form { 
+	position: absolute;
+	top: 300px;
+	left: 50%;
+	margin: -150px 0 0 -150px;
+	width:300px;
+	height:300px;
+}
+
+.join {
+	height: 70px;
+}
+
+.find {
+	position: absolute;
+	top: 300px;
+	left: 50%;
+	margin: -80px 0 0 -300px;
+	width: 600px;
+	height: 300px;
+}
+
+.find_info {
+	position: relative;
+	float: left;
+	width: 50%;
+	height: 100%;
+}
+
+.my_group {
+	position: relative;
+	float: left;
+	width: 45%;
+	height: 45%;
+	margin: 2.5%;
+	background-color: #b3c6e7;
+	border-radius: 2em;
+	text-align: center;
+	padding-top: 10px;
+}
+
+.group {
+	position: absolute;
+	top: 100px;
+	width: 85%;
+	height: 600px;
+}
+
+.group_manage {
+	position: relative;
+	float: left;
+	width: 16%;
+	height: 16%;
+	margin: 2%;
+	background-color: #b3c6e7;
+	border-radius: 1em;
+	text-align: center;
+	padding: 10px 0;
+}
+
+.group_name {
+	margin-top: 10%;
+	font-size: 20px;
+	word-break:break-all;
+}
+
+.mem_theme {
+	position: absolute;
+	top: 100px;
+	left: 50%;
+	margin: 0 0 0 -500px;
+	text-align: center;
+	width: 1000px;
+	color: #53CACE;
+}
+
+input { 
+	display: block;
+	margin: 0 auto;
+	width: 80%;
+	border: 0;
+	border-bottom: 1px solid rgba(0,0,0,.2);
+	height: 45px;
+	line-height: 45px;  
+	margin-bottom: 10px;
+	font-size: 1em;
+	color: rgba(0,0,0,.4);
+}
+
+input:FOCUS { 
+	outline: none;
+	border-color: #53CACE;
+}
+
+input:DISABLED {
+	display: block;
+	margin: 0 auto;
+	width: 80%;
+	border: 0;
+	height: 45px;
+	margin-bottom: 10px;
+	background-color: #fff;
+}
+
+p {
+	display: block;
+	margin: 0 auto;
+	width: 80%;
+	font-size: 0.5em;
+/* 	color: #f00; */
+}
+
+[type=submit], input[type=button] {
+  width: 80%;
+  border: 0;
+  background-color: #53CACE;
+  border-radius: 5px;
+  height: 50px;
+  color: white;
+  font-weight: 400;
+  font-size: 1em;
+}
+
+#login_logo {
+	width: 80%;
+	display: block;
+	margin: 30px;
+	opacity: 0.5;
+}
+
+#plus {
+/* 	display: block; */
+/* 	margin-left: auto; */
+/* 	margin-right: auto; */
+/* 	text-align: center; */
+}
+
+.join_error {
+	display: block;
+	margin: 0 auto;
+	width: 80%;
+	font-size: 0.5em;
+	color: #00f;
+}
+
+.infoText {
+	background-color: transparent;
+	padding-left: 12px;
+	margin-top: 40px;
+}

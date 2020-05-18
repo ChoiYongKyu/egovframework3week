@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.ExpenseMapper">
+<resultMap type="nosMap" id="clobinvert">
+	<result property="USAGE" column="USAGE" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="CONTENT" column="CONTENT" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="ETC" column="ETC" jdbcType="CLOB" javaType="java.lang.String" />
+</resultMap>
+
+	<sql id="expense">
+		SELECT *
+		FROM (SELECT ROWNUM RN
+		            , D.*
+		      FROM (SELECT 
+		                  
+		                  COUNT(EX.EX_NO) OVER() COUNT
+		                , EX.EX_NO
+		                , EX.CATEGORY
+		                , EX_TYPE_CODE.COMMON_CODE_VALUE AS EX_TYPE_NM
+		                , EX.MEM_NO
+		                , TO_CHAR(EX.REG_DTM,'YYYY-MM-DD HH24:MI') REG_DTM
+		                , EX.REG_NO
+		                , TO_CHAR(EX.MOD_DTM,'YYYY-MM-DD HH24:MI') MOD_DTM
+		                , EX.MOD_NO
+		                , EX.DEL_YN
+		                , EX.MONTH
+		                , MEM.MEM_NAME
+		                , MEM.MEM_DEPT
+		                , MEM_DEPT_CODE.COMMON_CODE_VALUE AS MEM_DEPT_NM
+		                , MEM.MEM_GRADE
+		                , MEM_GRADE_CODE.COMMON_CODE_VALUE AS MEM_GRADE_NM
+		                , APRV.APRV_LNKG_CLSF
+		                  , APRV.APRV_NO
+		                  , APRV.APRV_TN
+		                  , APRV.APRV_STAT
+		                  , APRV_STAT_CODE.COMMON_CODE_VALUE AS APRV_STAT_NM
+		            FROM EXPENSE EX
+		            INNER JOIN MEMBER MEM
+		              ON MEM.MEM_NO = EX.MEM_NO
+		              
+		            INNER JOIN APPROVAL APRV
+		                ON APRV.APRV_LNKG_TBL_PK = EX.EX_NO
+		                AND APRV.APRV_LNKG_CLSF = 'EXPENSE'
+		                AND APRV.APRV_TN = ( SELECT MAX (TMP.APRV_TN)
+		                                      FROM APPROVAL TMP
+		                                     WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+		                                       AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+		                                  )
+		                INNER JOIN COMMON_CODE MEM_DEPT_CODE
+		                ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+		                AND MEM_DEPT_CODE.COMMON_CODE_KEY = MEM.MEM_DEPT
+		                
+		              INNER JOIN COMMON_CODE MEM_GRADE_CODE
+		                ON MEM_GRADE_CODE.COMMON_CODE = 'MEM_GRADE'
+		                AND MEM_GRADE_CODE.COMMON_CODE_KEY = MEM.MEM_GRADE
+		                 
+		              INNER JOIN COMMON_CODE EX_TYPE_CODE
+		                ON EX_TYPE_CODE.COMMON_CODE = 'EX_TYPE'
+		                AND EX_TYPE_CODE.COMMON_CODE_KEY = EX.CATEGORY
+		              
+		              INNER JOIN COMMON_CODE APRV_STAT_CODE
+		                ON APRV_STAT_CODE.COMMON_CODE = 'APRV_STAT'
+		                AND APRV_STAT_CODE.COMMON_CODE_KEY = APRV.APRV_STAT 	
+		                
+		            WHERE EX.DEL_YN = 'N'
+		            
+		            <!-- 상신취소 및 결재완료 보이지 않기 -->
+		            	AND APRV.APRV_STAT != 'AS03' 
+						AND APRV.APRV_STAT != 'AS05'
+						
+		            ORDER BY EX_NO DESC
+		      ) D
+		) 
+	</sql>
+		
+	<select id="selectList" resultType="nosMap">
+		<include refid="expense" />
+		WHERE RN BETWEEN ((#{page } - 1) * ${postPerPage }) + 1 AND #{page } * ${postPerPage }
+		<if test="sesDept != 'D02' and sesDept != 'D03' and all != ''">
+			AND MEM_NO = ${sesMemNo }
+		</if>
+	</select>
+
+	<select id="selectOne" resultType="nosMap">
+		<include refid="expense" />
+		WHERE EX_NO = #{exNo }
+	</select>
+	
+	<select id="selectDtlList" resultMap="clobinvert">
+		SELECT  
+				 EX_NO
+				, EX_DTL_NO
+				, DTM
+				, USAGE
+				, CONTENT
+				, PERSON
+				, MONEY
+				, ETC
+				, PURPOSE
+		FROM EXPENSE_DTL
+		WHERE EX_NO = #{exNo }
+		ORDER BY DTM
+	</select>
+
+	<insert id="insert">
+		<selectKey keyProperty="exNo" order="AFTER" resultType="int">
+            SELECT EX_SEQ.CURRVAL FROM DUAL
+        </selectKey>
+		INSERT INTO EXPENSE(
+		                      EX_NO
+		                    , CATEGORY
+		                    , MEM_NO
+		                    , REG_DTM
+		                    , REG_NO
+		                    , MOD_DTM
+		                    , MOD_NO
+		                    , DEL_YN
+		                    , MONTH
+		                    , MEM_DEPT
+		                    , MEM_GRADE
+		                    ) VALUES (
+		                      EX_SEQ.NEXTVAL
+		                    , #{category }
+		                    , #{sesMemNo }
+		                    , SYSDATE
+		                    , #{sesMemNo }
+		                    , SYSDATE
+		                    , #{sesMemNo }
+		                    , 'N'
+		                    , #{month }
+		                    , #{memDept }
+		                    , #{memGrade }
+		                    )
+	</insert>
+
+	<insert id="insertDetail">
+		INSERT INTO EXPENSE_DTL(
+			                      EX_DTL_NO
+			                    , DTM
+			                    , USAGE
+			                    , CONTENT
+			                    , MONEY
+			                    , ETC
+			                    , EX_NO
+			                    , PERSON
+			                    , PURPOSE
+			                    ) VALUES (
+			                      EX_DTL_SEQ.NEXTVAL
+			                    , #{dtm }
+			                    , #{usage }
+			                    , #{content }
+			                    , #{money }
+			                    , #{etc }
+			                    , #{exNo }
+		<if test="category == 'EX01' || category == 'EX02'">
+			                    , #{person }
+			                    , null
+		</if>
+		<if test="category == 'EX03'">
+								, null
+			                    , #{purpose }
+		</if>
+			                    )
+	</insert>
+	
+	<update id="update">
+		UPDATE EXPENSE SET 
+		<if test="delYn != null">
+		                    DEL_YN = #{delYn }
+		</if>
+		<if test="delYn == null">
+		                    CATEGORY = #{category } 
+		                  , REG_DTM = SYSDATE
+		                  , REG_NO = #{sesMemNo }
+		                  , MOD_DTM = SYSDATE
+		                  , MOD_NO = #{sesMemNo }
+		                  , MONTH = #{month }
+		                  , MEM_DEPT = #{memDept }
+		                  , MEM_GRADE = #{memGrade }
+		</if>   
+		WHERE EX_NO = #{exNo }
+	</update>
+
+	<delete id="deleteDetail">
+		DELETE FROM EXPENSE_DTL 
+		WHERE EX_NO = #{exNo }
+	</delete>
+
+	<update id="delete">
+	  UPDATE EXPENSE 
+	  SET 
+	  	  DEL_YN = #{delYn}
+	  	, MOD_DTM = SYSDATE
+	    , MOD_NO = #{sesMemNo}
+	  WHERE EX_NO = #{exNo }
+	</update>
+</mapper>

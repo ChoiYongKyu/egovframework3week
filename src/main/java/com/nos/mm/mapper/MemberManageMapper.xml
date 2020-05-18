@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.MemberManageMapper">
+	
+	<!-- 수정 전 
+	<select id="list" parameterType="map" resultType="map">
+		SELECT COUNT
+			  , T.MEM_NO
+		      , T.MEM_ID
+		      , T.MEM_NAME
+		      , T.AUTH_NAME
+		FROM(SELECT ROWNUM RN
+					, COUNT(*) OVER() COUNT
+					, M.MEM_NO
+					, M.MEM_ID
+					, M.MEM_NAME
+					, A.AUTH_NAME
+		      FROM MEMBER M
+		      JOIN AUTH A
+		      ON M.AUTH_NO = A.AUTH_NO
+		<choose>
+			<when test="keyword != null">
+		     	WHERE MEM_ID LIKE '%' || #{keyword } || '%'
+		     	OR MEM_NAME LIKE '%' || #{keyword } || '%'
+		    </when>
+		</choose>
+			  ORDER BY M.MEM_NO DESC) T
+		<![CDATA[
+		WHERE RN >= ((#{page } - 1) * #{list_size }) + 1 AND RN <= #{page } * #{list_size }
+		]]>
+	</select>
+	-->
+	
+	<!-- 수정 후 -->
+	<!-- 공통코드 변경한 거 -->
+	<select id="list" parameterType="map" resultType="map">
+		SELECT COUNT
+		      , RN
+		      , MEM_NO
+		      , MEM_ID
+		      , MEM_NAME
+		      , AUTH_NAME
+		      , AUTH_NO
+		      , MEM_TEL
+		FROM(SELECT ROWNUM RN
+				  , COUNT(*) OVER() COUNT
+		          , M.MEM_NO
+		          , M.MEM_ID
+		      	  , M.MEM_NAME
+		      	  , M.MEM_TEL
+		      	  , CC.COMMON_CODE_VALUE AS AUTH_NAME
+		      	  , CC.COMMON_CODE_KEY AS AUTH_NO
+		     FROM (SELECT MEM_NO
+		                , MEM_NAME
+		                , MEM_ID
+		                , AUTH_NO
+		                , MEM_TEL
+		           FROM MEMBER 
+		            <choose>
+			            <when test="keyword != null">
+					     	WHERE MEM_ID LIKE '%' || #{keyword } || '%'
+					     	OR MEM_NAME LIKE '%' || #{keyword } || '%'
+					    </when>
+				    </choose>
+		           ORDER BY MEM_NO DESC) M
+		     JOIN COMMON_CODE CC
+          	 ON M.AUTH_NO = CC.COMMON_CODE_KEY AND CC.COMMON_CODE = 'AUTH'
+          	 ) T 
+		<![CDATA[
+			WHERE RN >= ((#{page } - 1) * #{list_size }) + 1 AND RN <= #{page } * #{list_size }
+		]]>
+		ORDER BY RN
+	</select>
+	
+	<select id="getGroup" parameterType="int" resultType="map">
+		SELECT G.MN_GROUP_NAME
+				  , G.MN_GROUP_NO
+		FROM JOIN J
+		JOIN MN_GROUP G
+		ON J.MN_GROUP_NO = G.MN_GROUP_NO
+		WHERE J.MEM_NO = #{mem_no }
+	</select>
+	
+	<!-- 공통코드 추가시 건드린 부분 -->
+	<!-- number, varchar2 문제가 일어날 수 있음 -->
+	<select id="auth" resultType="map">
+		SELECT COMMON_CODE_KEY AS AUTH_NO
+		     , COMMON_CODE_VALUE AS AUTH_NAME
+		FROM COMMON_CODE
+		WHERE COMMON_CODE = 'AUTH'
+	</select>
+	
+	<update id="changhAuth" parameterType="map">
+		UPDATE MEMBER
+		SET AUTH_NO = #{auth_no }
+		WHERE MEM_NO = ${mem_no }
+	</update>
+	
+	<update id="reset" parameterType="map">
+		UPDATE MEMBER 
+		SET MEM_PW = #{mem_pw }
+			 , MEM_ENC = #{salt }
+		WHERE MEM_NO = #{mem_no }
+		<selectKey order="AFTER" resultType="string" keyProperty="mem_id">
+			SELECT MEM_ID FROM MEMBER WHERE MEM_NO = #{mem_no }
+		</selectKey>
+	</update>
+	
+	<delete id="delete" parameterType="int">
+		DELETE FROM MEMBER
+		WHERE MEM_NO = #{mem_no }
+	</delete>
+	
+	<select id="getAllGroup" resultType="map">
+		SELECT MN_GROUP_NO
+		    	  , MN_GROUP_NAME
+		FROM MN_GROUP
+	</select>
+	
+	<insert id="groupAdd"  parameterType="map">
+		INSERT INTO MN_GROUP(
+                      MN_GROUP_NO
+                    , MN_GROUP_NAME
+                    , MN_GROUP_COUNT
+                    )
+              VALUES(
+                      GROUP_SEQ.NEXTVAL
+                    , #{mn_group_name }
+                    , 0
+                    )
+    	<selectKey order="AFTER" keyProperty="mn_group_no" resultType="int">
+    		SELECT GROUP_SEQ.CURRVAL FROM DUAL
+    	</selectKey>
+	</insert>
+	
+	<!-- string은 #{mem_no } #{mn_group_no } 같이 되는데 int는 되지 않음... 맵으로 하던지 이렇게 하던지 해야함 -->
+	<delete id="groupDelMem" parameterType="int">
+		DELETE FROM JOIN
+		WHERE MEM_NO = #{param1 }
+		AND MN_GROUP_NO = #{param2 }
+	</delete>
+	
+	<select id="groupCheckMem" parameterType="string" resultType="map">
+	<![CDATA[
+		SELECT MEM_NAME
+			  , MEM_NO
+			  , MEM_ID
+		FROM MEMBER
+		WHERE MEM_NAME LIKE '%' || #{mem_id } || '%'
+		]]>
+	</select>
+	
+	<select id="groupAddMemAfter" parameterType="int" resultType="map">
+		SELECT MEM_ID
+			 , MEM_NAME
+			 , MEM_NO
+		FROM MEMBER
+		WHERE MEM_NO = #{mem_no }
+	</select>
+	
+	<insert id="groupAddMem" parameterType="map">
+		INSERT INTO JOIN(
+                  MN_GROUP_NO
+                , MEM_NO
+                , LEADER_CHECK
+                )
+        VALUES (
+                  #{group_no }
+                , #{mem_no }
+                , 0
+                )
+	</insert>
+	
+	<delete id="groupDel" parameterType="map">
+		DELETE FROM MN_GROUP
+		WHERE MN_GROUP_NO = #{group_no }
+	</delete>
+	
+	<select id="allList" resultType="map">
+		SELECT MEM_NO
+		      , MEM_ID
+		      , MEM_NAME
+		FROM MEMBER
+		WHERE MEM_NO >= 0
+		ORDER BY MEM_NAME ASC
+	</select>
+</mapper>

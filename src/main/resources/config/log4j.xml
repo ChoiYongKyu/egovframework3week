@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE log4j:configuration SYSTEM "http://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/xml/doc-files/log4j.dtd">
+<log4j:configuration
+	xmlns:log4j="http://jakarta.apache.org/log4j/">
+
+	<!-- 로그를 어디에 출력할지 결정(콘솔, 파일, DB 등) -->
+	<appender name="console"
+		class="org.apache.log4j.ConsoleAppender">
+		<!-- 로그 출력 형식 결정 -->
+		<param name="Target" value="System.out" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern"
+				value="log4j : [%p] %d [%c{5}] %m [%X{userId}]%n" />
+		</layout>
+	</appender>
+
+	<appender name="test"
+		class="org.apache.log4j.RollingFileAppender">
+		<param name="file" value="c:/iw-ojt/logs/log.log" />
+		<param name="Append" value="true" />
+		<param name="MaxFileSize" value="200kb" />
+		<param name="MaxBackupIndex" value="2" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern"
+				value="[%d{yyyy-MM-dd HH:mm:ss.SSS}] %-5p %C{1}.%M(%F:%L) - %m%n" />
+		</layout>
+	</appender>
+<!--날씨정보 로그파일 1시간마다 경로에 생성 -->
+	<appender name="dailyout"
+		class="org.apache.log4j.DailyRollingFileAppender">
+		<param name="file" value="c:/logs/temperature.log" />
+		<param name="Append" value="true" />
+		<param name="MaxFileSize" value="5000kb" />
+		<param name="MaxBackupIndex" value="50" />
+		<param name ="DatePattern" value = "yyyy-MM-dd-HH"/>
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern"
+				value="[%d{yyyy-MM-dd HH:mm:ss.SSS}] %-5p %C{1}.%M(%F:%L) - %m%n" />
+		</layout>
+	</appender>
+
+
+
+	<!-- <logger name="org.springframework" additivity="false"> -->
+	<!-- <level value="debug" /> -->
+	<!-- <appender-ref ref="console" /> -->
+	<!-- </logger> -->
+
+	<logger name="org.mybatis" additivity="false">
+		<level value="debug" />
+		<appender-ref ref="test" />
+		<appender-ref ref="console" />
+	</logger>
+	<logger name="java.sql" additivity="false">
+		<level value="debug" />
+		<appender-ref ref="test" />
+		<appender-ref ref="console" />
+	</logger>
+	<logger name="com.nos.mm" additivity="false">
+		<level value="DEBUG" />
+		<appender-ref ref="test" />
+		<appender-ref ref="console" />
+		<!-- 최용규 -->
+		<appender-ref ref="dailyout"/>
+	</logger>
+
+	<!-- 특정패키지만 설정하는법... 스프링프레임워크만 파일로그로 남기는 테스트 -->
+	<!-- <logger name="org.springframework.aop"> <level value="DEBUG" /> <appender-ref 
+		ref="test" /> </logger> <logger name="org.springframework.jdbc"> <level value="DEBUG" 
+		/> <appender-ref ref="test" /> </logger> -->
+
+	<!-- ============================ -->
+	<!-- logger : 출력할 메세지를 Appender에 전달 -->
+	<!-- <logger name="org.apache.ibatis"> <level value="DEBUG"/> </logger> -->
+
+	<!-- <logger name="org.springframework"> -->
+	<!-- <level value="DEBUG"/> -->
+	<!-- <appender-ref ref="springFile" /> -->
+	<!-- </logger> -->
+	<!-- <logger name="com.nos.mm.mapper"> -->
+	<!-- <level value="ALL"/> -->
+	<!-- <appender-ref ref="console" /> -->
+	<!-- </logger> -->
+
+	<!-- 루트 로거 -->
+	<!-- <root> -->
+	<!-- <level value="OFF" /> -->
+	<!-- <appender-ref ref="test" /> -->
+	<!-- <appender-ref ref="console" /> -->
+	<!-- </root> -->
+</log4j:configuration>

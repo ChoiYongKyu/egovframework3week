@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.ApprovalMapper">
+    <insert id="insert">
+        <selectKey keyProperty="aprvNo" order="AFTER" resultType="int">
+            SELECT APRV_SEQ.CURRVAL FROM DUAL
+        </selectKey>
+        INSERT INTO APPROVAL ( APRV_NO
+                             , APRV_LNKG_CLSF
+                             , APRV_LNKG_TBL_PK
+                             , APRV_TN
+                             , APRV_STAT
+                             , REG_DTM
+                             , REG_NO
+                             , MOD_DTM
+                             , MOD_NO
+                             )
+                      VALUES ( APRV_SEQ.NEXTVAL
+                             , #{aprvLnkgClsf}
+                             , #{aprvLnkgTblPk}
+                             , #{aprvTn}
+                             , #{aprvStat}
+                             , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                             , #{sesMemNo}
+                             , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                             , #{sesMemNo}
+                             )
+    </insert>
+
+    <update id="updateAprvStat">
+        UPDATE APPROVAL SET APRV_STAT = #{aprvStat}
+                          , MOD_DTM = TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                          , MOD_NO = #{sesMemNo}
+                      WHERE APRV_NO = #{aprvNo}
+    </update>
+
+    <sql id="approvalQuery">
+        SELECT DATA.DATA_NO
+             , DATA.APRV_LNKG_CLSF
+             , DATA.TITLE
+             , APRV.APRV_NO
+             , APRV.APRV_STAT
+             , APRV_STAT_CODE.COMMON_CODE_VALUE  AS APRV_STAT_NM
+             , MBR.MEM_NAME
+             , MEM_DEPT_CODE.COMMON_CODE_VALUE  AS MEM_DEPT_NM
+             , DATA.ENFC_DT
+             , SUBSTR(DATA.REG_DTM, 0, 10) AS REG_DT
+             , DATA.UPLOAD_NO
+          FROM APPROVAL APRV
+
+    INNER JOIN ( SELECT VAC.VAC_NO AS DATA_NO
+                      , 'VACATION' AS APRV_LNKG_CLSF
+                      , '[' || VAC_TYPE_CODE.COMMON_CODE_VALUE || '] 신청서' AS TITLE
+                      , VAC.MEM_NO
+                      , VAC.MEM_DEPT
+                      , CASE INSTR (VAC.VAC_START_DT, VAC.VAC_END_DT) WHEN 1 THEN VAC.VAC_START_DT
+                                                                      WHEN 0 THEN VAC.VAC_START_DT || ' ~ ' || VAC.VAC_END_DT
+                        END AS ENFC_DT
+                      , VAC.REG_DTM
+                      , VAC.REG_NO
+                      , VAC.MOD_DTM
+                      , VAC.MOD_NO
+                      , NULL AS UPLOAD_NO
+                   FROM VACATION VAC
+
+             INNER JOIN COMMON_CODE VAC_TYPE_CODE
+                     ON VAC_TYPE_CODE.COMMON_CODE = 'VAC_TYPE'
+                    AND VAC_TYPE_CODE.COMMON_CODE_KEY = VAC.VAC_TYPE
+                  WHERE VAC.DEL_YN = 'N'
+
+              UNION ALL
+
+                 SELECT CSTN.CSTN_NO AS DATA_NO
+                      , 'CONSULTATION' AS APRV_LNKG_CLSF
+                      , '[품의] ' || CSTN_TITLE AS TITLE
+                      , CSTN.MEM_NO
+                      , CSTN.MEM_DEPT
+                      , CSTN.ENFC_DT
+                      , CSTN.REG_DTM
+                      , CSTN.REG_NO
+                      , CSTN.MOD_DTM
+                      , CSTN.MOD_NO
+                      , ULD.UPLOAD_NO
+                   FROM CONSULTATION CSTN
+
+              LEFT JOIN UPLOAD ULD
+                     ON ULD.UPLOAD_CONNECT = CSTN.CSTN_NO
+                    AND ULD.UPLOAD_TABLE = 'CONSULTATION'
+
+                  WHERE DEL_YN = 'N'
+                  
+             UNION ALL
+
+                 SELECT EX.EX_NO AS DATA_NO
+                      , 'EXPENSE' AS APRV_LNKG_CLSF
+                      , '[' || EX_TYPE_CODE.COMMON_CODE_VALUE || '] 신청서' AS TITLE
+                      , EX.MEM_NO
+                      , EX.MEM_DEPT
+                      , TO_CHAR(EX.REG_DTM,'YYYY-MM-DD') ENFC_DT
+                      , TO_CHAR(EX.REG_DTM,'YYYY-MM-DD HH24:MI') REG_DTM
+                      , EX.REG_NO
+                      , TO_CHAR(EX.REG_DTM,'YYYY-MM-DD HH24:MI') MOD_DTM
+                      , EX.MOD_NO
+                      , NULL AS UPLOAD_NO
+                   FROM EXPENSE EX
+
+              INNER JOIN COMMON_CODE EX_TYPE_CODE
+	           		  ON EX_TYPE_CODE.COMMON_CODE = 'EX_TYPE'
+	           		 AND EX_TYPE_CODE.COMMON_CODE_KEY = EX.CATEGORY
+
+                  WHERE DEL_YN = 'N'
+             ) DATA
+             
+            ON DATA.DATA_NO = APRV.APRV_LNKG_TBL_PK
+           AND DATA.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+           AND ( SELECT MAX(TMP.APRV_TN)
+                   FROM APPROVAL TMP
+                  WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+                    AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+               ) = APRV.APRV_TN
+
+    INNER JOIN ( SELECT MEM.MEM_NO
+                      , MEM.MEM_NAME
+                      , SIGN.UPLOAD_AFTER AS SIGN_IMG
+                   FROM MEMBER MEM
+
+              LEFT JOIN UPLOAD SIGN
+                     ON SIGN.UPLOAD_CONNECT = MEM.MEM_NO
+                    AND SIGN.UPLOAD_TABLE = 'member'
+             ) MBR
+            ON MBR.MEM_NO = DATA.MEM_NO
+             
+    INNER JOIN COMMON_CODE MEM_DEPT_CODE
+            ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+           AND MEM_DEPT_CODE.COMMON_CODE_KEY = DATA.MEM_DEPT
+           
+         INNER JOIN COMMON_CODE APRV_STAT_CODE
+            ON APRV_STAT_CODE.COMMON_CODE = 'APRV_STAT'
+           AND APRV_STAT_CODE.COMMON_CODE_KEY = APRV.APRV_STAT
+    </sql>
+    
+    <select id="selectReceivedList" resultType="nosMap">
+        <include refid="approvalQuery"/>
+    INNER JOIN DECIDING_OFFICER DCOF
+            ON DCOF.APRV_NO = APRV.APRV_NO
+
+    INNER JOIN ( SELECT APRV_NO
+                      , MIN(APRV_SORT) AS APRV_SORT
+                   FROM DECIDING_OFFICER
+                  WHERE DOCF_STAT = 'DS01'
+               GROUP BY APRV_NO
+             ) TARGET
+            ON TARGET.APRV_NO = DCOF.APRV_NO
+           AND TARGET.APRV_SORT = DCOF.APRV_SORT
+           AND DCOF.MEM_NO = #{sesMemNo}
+
+         WHERE APRV.APRV_STAT = 'AS02'
+         
+      ORDER BY APRV.APRV_NO DESC
+    </select>
+
+    <select id="selectReportedList" resultType="nosMap">
+        <include refid="approvalQuery"/>
+           AND DATA.MEM_NO = #{sesMemNo}
+		
+      ORDER BY APRV.APRV_NO DESC
+    </select>
+
+    <select id="selectStoredList" resultType="nosMap">
+        <include refid="approvalQuery"/>
+           AND APRV.APRV_STAT NOT IN ('AS01')
+		
+			<!-- 상신취소 보이지 않기 -->
+           	WHERE APRV.APRV_STAT != 'AS03'
+		<if test="sesDept != 'D02' and sesDept != 'D03' and all != ''">
+			AND DATA.MEM_NO = ${sesMemNo }
+		</if>
+
+      ORDER BY APRV.APRV_NO DESC
+    </select>
+
+    <select id="selectOneVacationApproval" resultType="nosMap">
+        SELECT VAC.VAC_NO
+             , APRV.APRV_NO
+             , MBR.MEM_NAME
+             , MEM_DEPT_CODE.COMMON_CODE_VALUE  AS MEM_DEPT_NM
+             , MEM_GRADE_CODE.COMMON_CODE_VALUE AS MEM_GRADE_NM
+             , VAC.VAC_TYPE
+             , VAC.MEM_TEL
+             , VAC.VAC_START_DT
+             , VAC.VAC_END_DT
+             , VAC.VAC_DAYS
+             , VAC.VAC_REASON
+             , SUBSTR(VAC.REG_DTM, 0, 10) AS REG_DT
+             , MBR.SIGN_IMG
+          FROM APPROVAL APRV
+
+    INNER JOIN VACATION VAC
+            ON VAC.VAC_NO = APRV.APRV_LNKG_TBL_PK
+           AND 'VACATION' = APRV.APRV_LNKG_CLSF
+           AND ( SELECT MAX(TMP.APRV_TN)
+                   FROM APPROVAL TMP
+                  WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+                    AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+             ) = APRV.APRV_TN
+
+    INNER JOIN ( SELECT MEM.MEM_NO
+                      , MEM.MEM_NAME
+                      , SIGN.UPLOAD_AFTER AS SIGN_IMG
+                   FROM MEMBER MEM
+
+              LEFT JOIN UPLOAD SIGN
+                     ON SIGN.UPLOAD_CONNECT = MEM.MEM_NO
+                    AND SIGN.UPLOAD_TABLE = 'member'
+             ) MBR
+            ON MBR.MEM_NO = VAC.MEM_NO
+
+    INNER JOIN COMMON_CODE MEM_DEPT_CODE
+            ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+           AND MEM_DEPT_CODE.COMMON_CODE_KEY = VAC.MEM_DEPT
+
+    INNER JOIN COMMON_CODE MEM_GRADE_CODE
+            ON MEM_GRADE_CODE.COMMON_CODE = 'MEM_GRADE'
+           AND MEM_GRADE_CODE.COMMON_CODE_KEY = VAC.MEM_GRADE
+
+           AND APRV.APRV_NO = #{aprvNo}
+    </select>
+
+    <select id="selectOneConsultationApproval" resultType="nosMap">
+        SELECT CSTN.CSTN_NO
+             , APRV.APRV_NO
+             , MBR.MEM_NAME
+             , MEM_DEPT_CODE.COMMON_CODE_VALUE  AS MEM_DEPT_NM
+             , CSTN.WROT_DT
+             , CSTN.ENFC_DT
+             , CSTN.CSTN_TITLE
+             , CSTN.CSTN_CN
+             , MBR.SIGN_IMG
+             , ( SELECT UPLOAD_NO
+                   FROM UPLOAD
+                  WHERE UPLOAD_CONNECT = CSTN.CSTN_NO
+                    AND UPLOAD_TABLE = 'CONSULTATION'
+             ) AS UPLOAD_NO
+          FROM APPROVAL APRV
+
+    INNER JOIN CONSULTATION CSTN
+            ON CSTN.CSTN_NO = APRV.APRV_LNKG_TBL_PK
+           AND 'CONSULTATION' = APRV.APRV_LNKG_CLSF
+           AND ( SELECT MAX(TMP.APRV_TN)
+                   FROM APPROVAL TMP
+                  WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+                    AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+              ) = APRV.APRV_TN
+
+     INNER JOIN ( SELECT MEM.MEM_NO
+                       , MEM.MEM_NAME
+                       , SIGN.UPLOAD_AFTER AS SIGN_IMG
+                    FROM MEMBER MEM
+
+               LEFT JOIN UPLOAD SIGN
+                      ON SIGN.UPLOAD_CONNECT = MEM.MEM_NO
+                     AND SIGN.UPLOAD_TABLE = 'member'
+              ) MBR
+             ON MBR.MEM_NO = CSTN.MEM_NO
+
+    INNER JOIN COMMON_CODE MEM_DEPT_CODE
+            ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+           AND MEM_DEPT_CODE.COMMON_CODE_KEY = CSTN.MEM_DEPT
+
+           AND APRV.APRV_NO = #{aprvNo}
+    </select>
+    
+    <select id="selectOneExpenseApproval" resultType="nosMap">
+        SELECT EX.EX_NO
+             , APRV.APRV_NO
+             , MBR.MEM_NAME
+             , MEM_DEPT_CODE.COMMON_CODE_VALUE  AS MEM_DEPT_NM
+             , MEM_GRADE_CODE.COMMON_CODE_VALUE AS MEM_GRADE_NM
+             , EX.CATEGORY
+             , TO_CHAR(EX.MOD_DTM,'YYYY-MM-DD HH24:MI') MOD_DTM
+             , EX.MONTH
+             , MBR.SIGN_IMG
+          FROM APPROVAL APRV
+
+    INNER JOIN EXPENSE EX
+            ON EX.EX_NO = APRV.APRV_LNKG_TBL_PK
+           AND 'EXPENSE' = APRV.APRV_LNKG_CLSF
+           AND ( SELECT MAX(TMP.APRV_TN)
+                   FROM APPROVAL TMP
+                  WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+                    AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+             ) = APRV.APRV_TN
+
+    INNER JOIN ( SELECT MEM.MEM_NO
+                      , MEM.MEM_NAME
+                      , SIGN.UPLOAD_AFTER AS SIGN_IMG
+                   FROM MEMBER MEM
+
+              LEFT JOIN UPLOAD SIGN
+                     ON SIGN.UPLOAD_CONNECT = MEM.MEM_NO
+                    AND SIGN.UPLOAD_TABLE = 'member'
+             ) MBR
+            ON MBR.MEM_NO = EX.MEM_NO
+
+    INNER JOIN COMMON_CODE MEM_DEPT_CODE
+            ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+           AND MEM_DEPT_CODE.COMMON_CODE_KEY = EX.MEM_DEPT
+
+    INNER JOIN COMMON_CODE MEM_GRADE_CODE
+            ON MEM_GRADE_CODE.COMMON_CODE = 'MEM_GRADE'
+           AND MEM_GRADE_CODE.COMMON_CODE_KEY = EX.MEM_GRADE
+
+           AND APRV.APRV_NO = #{aprvNo}
+    </select>
+
+    <select id="selectAprvTn" resultType="int">
+        SELECT NVL(MAX(APRV_TN), 0) AS APRV_TN
+          FROM APPROVAL
+         WHERE APRV_LNKG_CLSF = #{aprvLnkgClsf}
+           AND APRV_LNKG_TBL_PK = #{aprvLnkgTblPk}
+    </select>
+</mapper>

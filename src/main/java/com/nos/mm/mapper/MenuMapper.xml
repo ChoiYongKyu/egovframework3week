@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.MenuMapper">
+	
+	<select id="getMenu" resultType="menuvo">
+		SELECT LEVEL
+			 , MENU_NAME
+			 , MENU_NO
+			 , MENU_PARENT
+			 , URL
+		FROM MENU
+		WHERE MENU_NO > 1
+		START WITH MENU_NO = 1
+		CONNECT BY PRIOR MENU_NO = MENU_PARENT
+	</select>
+
+
+	<select id="getMenuCount" resultType="menuvo">
+		SELECT LEVEL
+       , G.MENU_NAME AS MENU_NAME
+			 , MENU.MENU_NO
+			 , MENU.MENU_PARENT
+			 , MENU.URL
+		FROM MENU MENU 
+		<![CDATA[
+		INNER JOIN (
+	          SELECT M.MENU_NO, DECODE(M.MENU_NAME, '수신함', DECODE(AP.count, 0, M.MENU_NAME, M.MENU_NAME || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ ' || AP.count || ' ]'), M.MENU_NAME) AS MENU_NAME
+	          FROM MENU M, (
+	              select count(*) as count  from APPROVAL AP INNER JOIN (
+	                select a.APRV_NO, a.APRV_SORT, DO.MEM_NO from (
+	                  SELECT APRV_NO
+	                  , MIN(APRV_SORT) AS APRV_SORT
+	                  FROM DECIDING_OFFICER
+	                  WHERE DOCF_STAT = 'DS01'
+	                  GROUP BY APRV_NO
+	                ) a INNER JOIN DECIDING_OFFICER DO
+	                ON a.APRV_NO = DO.APRV_NO
+	                AND a.APRV_SORT = DO.APRV_SORT
+	                AND DO.MEM_NO = #{sesMemNo}
+	              ) b
+	              ON b.APRV_NO = AP.APRV_NO
+	              AND AP.APRV_STAT = 'AS02') AP
+	          ) G
+          ON MENU.MENU_NO = G.MENU_NO
+		]]>
+		WHERE MENU.MENU_NO > 1
+		START WITH MENU.MENU_NO = 1
+		CONNECT BY PRIOR MENU.MENU_NO = MENU.MENU_PARENT
+	</select>
+
+	<select id="getParentURL" parameterType="int" resultType="string">
+		SELECT URL 
+		FROM MENU 
+		WHERE MENU_NO = #{parent_no }
+		
+	</select>
+	
+	<select id="getGroup" resultType="map" parameterType="string">
+		SELECT MN_GROUP_NO
+		FROM JOIN J
+		LEFT JOIN MEMBER M
+  		ON M.MEM_NO = J.MEM_NO
+		WHERE M.MEM_ID = #{id}
+	</select>
+
+	<insert id="add" parameterType="menuvo">
+		INSERT INTO MENU(
+                  MENU_NO
+                , MENU_NAME
+                , URL
+                , MENU_PARENT
+                )
+        VALUES(
+                MENU_SEQ.NEXTVAL
+              , #{menu_name }
+              , #{url }
+              , #{menu_parent }
+              )
+    	<selectKey order="AFTER" keyProperty="menu_no" resultType="int">
+    		SELECT MENU_SEQ.CURRVAL FROM DUAL
+    	</selectKey>
+	</insert>
+	
+	<delete id="del" parameterType="int">
+		DELETE FROM MENU 
+		WHERE MENU_NO = #{menu_no }
+	</delete>
+</mapper>

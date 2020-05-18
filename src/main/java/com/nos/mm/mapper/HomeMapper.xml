@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.HomeMapper">
+
+	<select id="getPersonChart" parameterType="map" resultType="map">
+		SELECT M.CLIENT_NO
+		      , C.CLIENT_NAME
+		      , COUNT(*) COUNT
+		FROM MAINTENANCE M 
+		JOIN CLIENT C
+		ON M.CLIENT_NO = C.CLIENT_NO
+		<choose>
+			<when test="mem_no == 0">
+				WHERE 1 = 1
+			</when>
+			<otherwise>
+				WHERE M.MEM_NO = #{mem_no }
+			</otherwise>
+		</choose>
+		<choose>
+			<when test="periodCheck == 0">
+				AND M.MN_END_DATE LIKE '%' || #{period } || '%'
+			</when>
+			<when test="periodCheck == 1">
+				<![CDATA[
+					AND M.MN_END_DATE >= #{period }
+					AND M.MN_END_DATE < #{periodQuarter } 
+				]]>
+			</when>
+			<when test="periodCheck== 2">
+				AND M.MN_END_DATE LIKE '%' || #{period } || '%'
+			</when>
+		</choose>
+		GROUP BY M.CLIENT_NO, C.CLIENT_NAME
+	</select>
+	
+	<select id="getGroupNo" parameterType="map" resultType="int">
+		<choose>
+			<when test="mem_no == 0">
+				SELECT MN_GROUP_NO
+				FROM JOIN
+		        GROUP BY MN_GROUP_NO
+			</when>
+			<otherwise>
+				SELECT J.MN_GROUP_NO
+				FROM JOIN J
+				JOIN MEMBER M
+				ON J.MEM_NO = M.MEM_NO
+				WHERE M.MEM_NO = #{mem_no }
+			</otherwise>
+		</choose>
+	</select>
+
+	<select id="getGroupChart" parameterType="map" resultType="map">
+		SELECT C.CLIENT_NAME, C.CLIENT_NO
+		      , G.MN_GROUP_NAME
+	          , COUNT(*) COUNT
+		FROM MAINTENANCE M 
+    	JOIN CLIENT C
+    	ON M.CLIENT_NO = C.CLIENT_NO
+		JOIN MN_GROUP G
+		ON M.MN_GROUP_NO = G.MN_GROUP_NO
+	    WHERE M.MN_GROUP_NO = #{mn_group_no }
+		<choose>
+			<when test="periodCheck == 0">
+				AND M.MN_END_DATE LIKE '%' || #{period } || '%'
+			</when>
+			<when test="periodCheck == 1">
+				<![CDATA[
+					AND M.MN_END_DATE >= #{period }
+					AND M.MN_END_DATE < #{periodQuarter } 
+				]]>
+			</when>
+			<when test="periodCheck== 2">
+				AND M.MN_END_DATE LIKE '%' || #{period } || '%'
+			</when>
+		</choose>
+      	GROUP BY C.CLIENT_NAME, C.CLIENT_NO, G.MN_GROUP_NAME
+	</select>
+
+	<select id="receiveCount" resultType="int" >
+	select count(*) from APPROVAL AP INNER JOIN (
+		select a.APRV_NO, a.APRV_SORT, DO.MEM_NO from (
+			SELECT APRV_NO
+			, MIN(APRV_SORT) AS APRV_SORT
+			FROM DECIDING_OFFICER
+			WHERE DOCF_STAT = 'DS01'
+			GROUP BY APRV_NO
+		) a INNER JOIN DECIDING_OFFICER DO
+		ON a.APRV_NO = DO.APRV_NO
+		AND a.APRV_SORT = DO.APRV_SORT
+		AND DO.MEM_NO = #{sesMemNo}
+	) b
+	ON b.APRV_NO = AP.APRV_NO
+	AND AP.APRV_STAT = 'AS02'
+	</select>
+
+	<select id="memCount" resultType="int" >
+		SELECT COUNT(*) 
+		FROM MEMBER
+	</select>
+	<select id="clientCount" resultType="int" >
+		SELECT COUNT(*) 
+		FROM CLIENT
+	</select>
+	<select id="maintenanceCount" resultType="int" >
+		SELECT COUNT(*) 
+		FROM MAINTENANCE
+	</select>
+	
+	<select id="chartList" resultType="map">
+	<![CDATA[
+			SELECT ROWNUM
+			      , N.*
+			
+			FROM (SELECT M.MN_NO
+		         , C.CLIENT_NAME
+				 , WS.WORK_SCOPE_NAME
+				 , MEM.MEM_NAME
+				 , MG.MN_GROUP_NAME
+		         , M.WRITE_DATE
+		         , M.PARENT_NO
+			FROM MAINTENANCE M
+			LEFT JOIN CLIENT C
+			ON M.CLIENT_NO = C.CLIENT_NO
+			LEFT JOIN WORK_SCOPE WS
+			ON M.WORK_SCOPE_NO = WS.WORK_SCOPE_NO
+			LEFT JOIN MN_GROUP MG
+			ON M.MN_GROUP_NO = MG.MN_GROUP_NO
+			LEFT JOIN MEMBER MEM
+			ON M.MEM_NO = MEM.MEM_NO
+	    	ORDER BY M.WRITE_DATE DESC) N
+			
+		    WHERE N.PARENT_NO = 0 AND ROWNUM <= 5
+	]]>
+
+	</select>
+	
+	<select id="getWeather" resultType="map">
+		SELECT WEATHERMODIFYCODE
+			 , WEATHERMODIFYDESCRIPTION
+			 , WEATHERSTATUSCODE
+			 , WEATHERSTATUSDESCRIPTION
+			 , TIMESTAMP
+		FROM WEATHER
+	</select>
+	
+	<update id="setWeather" parameterType="map">
+		UPDATE WEATHER
+		SET WEATHERMODIFYCODE = #{weatherModifyCode}
+ 		  , WEATHERMODIFYDESCRIPTION = #{weatherModifyDescription}
+		  , WEATHERSTATUSCODE = #{weatherStatusCode}
+		  , WEATHERSTATUSDESCRIPTION = #{weatherStatusDescription}
+		  , TIMESTAMP = #{timestamp}
+		WHERE PK = 1
+	</update>
+</mapper>

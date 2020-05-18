@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nos.mm.mapper.TroubleMapper">
+<resultMap type="map" id="clobinvert">
+	<result property="TROUBLE_PROBLEM" column="TROUBLE_PROBLEM" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="TROUBLE_ANSWER" column="TROUBLE_ANSWER" jdbcType="CLOB" javaType="java.lang.String"/>
+	<result property="REPLY_ANSWER" column="REPLY_ANSWER" jdbcType="CLOB" javaType="java.lang.String"/>
+</resultMap>
+
+
+	<select id="getClient" resultType="map">
+		SELECT CLIENT_NO,
+		       CLIENT_NAME
+		FROM CLIENT
+		ORDER BY CLIENT_NAME
+	</select>
+	<select id="getProduct" resultType="map" parameterType="map">
+		SELECT DISTINCT UP.PRODUCT_NO,
+		       			P.PRODUCT_NAME
+		FROM USE_PRODUCT UP
+		JOIN PRODUCT P
+		ON UP.PRODUCT_NO = P.PRODUCT_NO
+		WHERE UP.CLIENT_NO = #{cList }
+	</select>
+
+	<select id="getVersion" resultType="map" parameterType="map">
+		SELECT DISTINCT 
+                VM.VERSION_NO,
+                VM.VERSION
+		FROM USE_PRODUCT UP
+		JOIN PRODUCT P
+		ON UP.PRODUCT_NO = P.PRODUCT_NO
+	    JOIN VERSION_MANAGEMENT VM
+	    ON UP.PRODUCT_NO = VM.PRODUCT_NO
+		WHERE UP.CLIENT_NO = #{cList } AND P.PRODUCT_NO = #{pList } AND VM.VERSION_KIND = #{vkList}
+	</select>
+	
+	<select id="getList" resultMap="clobinvert" parameterType="map">
+	<![CDATA[
+		SELECT * 
+		FROM (SELECT ROWNUM AS RNUM, A.*,
+		COUNT(*) OVER() COUNT
+			FROM(SELECT T.TROUBLE_NO
+				       ,CASE 
+			              WHEN LENGTH(T.TROUBLE_PROBLEM)>100 THEN SUBSTR(T.TROUBLE_PROBLEM ,0,100) || '...'
+			              WHEN LENGTH(T.TROUBLE_PROBLEM)<100 THEN T.TROUBLE_PROBLEM
+			              END AS TROUBLE_PROBLEM
+		               ,CASE 
+			              WHEN LENGTH(T.TROUBLE_ANSWER)>100 THEN SUBSTR(T.TROUBLE_ANSWER ,0,100) || '...'
+			              WHEN LENGTH(T.TROUBLE_ANSWER)<100 THEN T.TROUBLE_ANSWER
+			              END AS TROUBLE_ANSWER
+				       , TO_CHAR(T.TROUBLE_WRITE_DATE, 'yyyy-mm-dd hh24:mi:ss') AS TROUBLE_WRITE_DATE
+				       , VM.VERSION 
+				       , VM.VERSION_KIND
+				       , P.PRODUCT_NAME
+				       , C.CLIENT_NAME
+				       , M.MEM_NAME
+				       , F.UPLOAD_NO
+              		   , F.UPLOAD_BEFORE
+              		   , Y.UPLOAD_LIST
+				       , CASE
+		                  WHEN T.TROUBLE_NO = 49 THEN 0 
+		                  WHEN T.TROUBLE_NO != 49 THEN 1 
+		                  END AS TROUBLE_SEQ
+				FROM TROUBLE T
+				LEFT JOIN PRODUCT P
+				ON T.PRODUCT_NO = P.PRODUCT_NO
+				LEFT JOIN CLIENT C
+				ON T.CLIENT_NO = C.CLIENT_NO
+				LEFT JOIN VERSION_MANAGEMENT VM
+				ON T.VERSION_NO = VM.VERSION_NO
+				LEFT JOIN MEMBER M
+				ON T.MEM_NO = M.MEM_NO
+				
+				LEFT JOIN (
+		          SELECT
+		              UPLOAD_CONNECT, LISTAGG(UPLOAD_BEFORE, '&#10;') within group (order by UPLOAD_CONNECT) UPLOAD_LIST
+		          FROM
+		              UPLOAD
+		          group by UPLOAD_CONNECT
+		        ) Y
+		        ON T.TROUBLE_NO = Y.UPLOAD_CONNECT
+				
+				
+				
+				LEFT JOIN (
+		        SELECT UPLOAD_CONNECT, Max(UPLOAD_NO) UPLOAD_NO, Max(UPLOAD_BEFORE) UPLOAD_BEFORE FROM UPLOAD Group By UPLOAD_CONNECT
+		        ) F
+		        ON T.TROUBLE_NO = F.UPLOAD_CONNECT
+				]]>
+				<if test="searchText != null">
+					RIGHT JOIN (
+						SELECT T.TROUBLE_NO 
+						FROM TROUBLE T
+						     LEFT JOIN REPLY R
+						     ON T.TROUBLE_NO = R.TROUBLE_NO
+						WHERE T.TROUBLE_PROBLEM LIKE '%' || #{searchText} || '%'
+						     OR T.TROUBLE_ANSWER LIKE '%' || #{searchText} || '%' 
+						     OR R.REPLY_ANSWER LIKE '%' || #{searchText} || '%' 
+						     GROUP BY T.TROUBLE_NO) G
+        			ON G.TROUBLE_NO = T.TROUBLE_NO
+				</if>
+				ORDER BY TROUBLE_SEQ, T.TROUBLE_NO DESC) A)
+				<![CDATA[
+		     		WHERE RNUM >= ((#{page } - 1) * #{list_size }) + 1 AND RNUM <= #{page } * #{list_size }
+		        ]]>
+	</select>
+	
+	<select id="getDetail" parameterType="int" resultMap="clobinvert">
+		SELECT T.TROUBLE_NO,
+		       T.TROUBLE_PROBLEM,
+		       T.TROUBLE_ANSWER,
+		       T.TROUBLE_WRITE_DATE,
+		       M.MEM_NAME,
+		       C.CLIENT_NAME,
+		       P.PRODUCT_NAME,
+		       VM.VERSION,
+		       VM.VERSION_KIND
+		FROM TROUBLE T
+		LEFT JOIN MEMBER M
+		ON T.MEM_NO = M.MEM_NO
+		LEFT JOIN CLIENT C
+		ON T.CLIENT_NO = C.CLIENT_NO
+		LEFT JOIN PRODUCT P
+		ON T.PRODUCT_NO = P.PRODUCT_NO
+		LEFT JOIN VERSION_MANAGEMENT VM
+		ON T.VERSION_NO = VM.VERSION_NO
+		WHERE TROUBLE_NO = #{no }
+	</select>
+	
+	<select id="getReply" resultMap="clobinvert" parameterType="map">
+		SELECT R.REPLY_NO,
+		       R.REPLY_ANSWER,
+		       R.MEM_NO,
+		       TO_CHAR(R.REPLY_WRITE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS REPLY_WRITE_DATE,
+		       M.MEM_NAME
+		FROM REPLY R
+		LEFT JOIN MEMBER M
+		ON R.MEM_NO = M.MEM_NO
+		WHERE R.TROUBLE_NO = #{no }
+		ORDER BY R.REPLY_NO
+	</select>
+	
+	<select id="getModify" parameterType="int" resultMap="clobinvert">
+		SELECT T.TROUBLE_NO,
+		       T.TROUBLE_PROBLEM,
+		       T.TROUBLE_ANSWER,
+		       T.TROUBLE_WRITE_DATE,
+		       M.MEM_NAME,
+		       T.CLIENT_NO,
+		       C.CLIENT_NAME,
+		       T.PRODUCT_NO,
+		       P.PRODUCT_NAME,
+		       T.VERSION_NO,
+		       VM.VERSION,
+		       VM.VERSION_KIND
+		FROM TROUBLE T
+		LEFT JOIN MEMBER M
+		ON T.MEM_NO = M.MEM_NO
+		LEFT JOIN CLIENT C
+		ON T.CLIENT_NO = C.CLIENT_NO
+		LEFT JOIN PRODUCT P
+		ON T.PRODUCT_NO = P.PRODUCT_NO
+		LEFT JOIN VERSION_MANAGEMENT VM
+		ON T.VERSION_NO = VM.VERSION_NO
+		WHERE TROUBLE_NO = #{no }
+	</select>
+	
+	<select id="getFileList" resultType="map" parameterType="map">
+		SELECT UPLOAD_NO
+			 , UPLOAD_BEFORE
+			 , UPLOAD_AFTER
+			 , TO_CHAR(UPLOAD_TIME,'YY/MM/DD HH24:MI:SS') AS UPLOAD_TIME
+		FROM UPLOAD
+		WHERE UPLOAD_TABLE = 'TROUBLE'
+		  AND UPLOAD_CONNECT = #{no} ORDER BY UPLOAD_TIME
+	</select>
+	
+	<insert id="insert" parameterType="map">
+		INSERT INTO TROUBLE(TROUBLE_NO,
+                  TROUBLE_PROBLEM,
+                  TROUBLE_ANSWER,
+                  MEM_NO,
+                  TROUBLE_WRITE_DATE,
+                  CLIENT_NO,
+                  PRODUCT_NO,
+                  VERSION_NO)
+          VALUES (trouble_seq.nextval, 
+          		 #{trouble_problem },
+          		 #{trouble_answer }, 
+          		 #{mem_no }, 
+          		 sysdate, 
+          		 #{cList },
+          		 #{pList },
+          		 #{vList })
+    	<selectKey keyProperty="trouble_no" order="AFTER" resultType="int">
+			SELECT TROUBLE_SEQ.CURRVAL FROM DUAL
+		</selectKey> 
+	</insert>
+	
+	<insert id="insertReply" parameterType="map">
+		INSERT INTO REPLY(REPLY_NO,
+                  REPLY_ANSWER,
+                  MEM_NO,
+                  REPLY_WRITE_DATE,
+                  TROUBLE_NO)
+            VALUES(reply_seq.nextval,
+                   #{insertReply },
+                   #{mem_no },
+                   sysdate,
+                   #{trouble_no })
+	</insert>
+	
+	<update id="modifyReply">
+		UPDATE REPLY
+        SET REPLY_ANSWER = #{reply_answer},
+        	REPLY_WRITE_DATE = SYSDATE
+        WHERE REPLY_NO = #{reply_no}
+	</update>
+	
+	<delete id="deleteReply" parameterType="int">
+		DELETE FROM REPLY
+		WHERE REPLY_NO = #{no}
+	</delete>
+	
+	<insert id="insertModify" parameterType="map">
+		UPDATE TROUBLE SET
+		                  TROUBLE_PROBLEM = #{trouble_problem },
+		                  TROUBLE_ANSWER = #{trouble_answer },
+		                  TROUBLE_WRITE_DATE = SYSDATE,
+		                  CLIENT_NO = #{cList },
+		                  PRODUCT_NO = #{pList },
+		                  VERSION_NO = #{vList }
+		WHERE TROUBLE_NO = #{trouble_no }
+	</insert>
+	
+	<delete id="doDelete">
+		DELETE
+		FROM TROUBLE
+		WHERE TROUBLE_NO = #{trouble_no }
+	</delete>
+	
+</mapper>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nos.mm.mapper.ConsultationMapper">
+    <insert id="insert">
+        <selectKey keyProperty="cstnNo" order="AFTER" resultType="int">
+            SELECT CSTN_SEQ.CURRVAL FROM DUAL
+        </selectKey>
+        INSERT INTO CONSULTATION ( CSTN_NO
+                                 , WROT_DT
+                                 , ENFC_DT
+                                 , MEM_DEPT
+                                 , MEM_NO
+                                 , CSTN_TITLE
+                                 , CSTN_CN
+                                 , REG_DTM
+                                 , REG_NO
+                                 , MOD_DTM
+                                 , MOD_NO
+                                 , DEL_YN
+                                 )
+                          VALUES ( CSTN_SEQ.NEXTVAL
+                                 , #{wrotDt}
+                                 , #{enfcDt}
+                                 , #{memDept}
+                                 , #{sesMemNo}
+                                 , #{cstnTitle}
+                                 , #{cstnCn}
+                                 , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                                 , #{sesMemNo}
+                                 , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                                 , #{sesMemNo}
+                                 , 'N'
+                             )
+    </insert>
+
+    <update id="update">
+        UPDATE CONSULTATION SET WROT_DT = #{wrotDt}
+                              , ENFC_DT = #{enfcDt}
+                              , CSTN_TITLE = #{cstnTitle}
+                              , CSTN_CN = #{cstnCn}
+                              , MOD_DTM = TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                              , MOD_NO = #{sesMemNo}
+                          WHERE DEL_YN = 'N'
+                            AND CSTN_NO = #{cstnNo}
+                            AND MEM_NO = #{sesMemNo}
+    </update>
+
+    <update id="delete">
+        UPDATE CONSULTATION SET DEL_YN = 'Y'
+                              , MOD_DTM = TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+                              , MOD_NO = #{sesMemNo}
+                          WHERE DEL_YN = 'N'
+                            AND CSTN_NO = #{cstnNo}
+                            AND MEM_NO = #{sesMemNo}
+    </update>
+
+    <sql id="consultationQuery">
+        SELECT CSTN.CSTN_NO
+             , CSTN.MEM_NO
+             , MBR.MEM_NAME
+             , MBR.MEM_ID
+             , CSTN.MEM_DEPT
+             , MEM_DEPT_CODE.COMMON_CODE_VALUE  AS MEM_DEPT_NM
+             , CSTN.WROT_DT
+             , CSTN.ENFC_DT
+             , CSTN.CSTN_TITLE
+             , CSTN.CSTN_CN
+             , CSTN.REG_DTM
+             , REG_MBR.MEM_NAME                 AS REG_NM
+             , CSTN.MOD_DTM
+             , MOD_MBR.MEM_NAME                 AS MOD_NM
+             , APRV.APRV_LNKG_CLSF
+             , APRV.APRV_NO
+             , APRV.APRV_TN
+             , APRV.APRV_STAT
+             , APRV_STAT_CODE.COMMON_CODE_VALUE AS APRV_STAT_NM
+             , ULD.UPLOAD_NO
+             , ULD.UPLOAD_BEFORE
+          FROM CONSULTATION CSTN
+
+    INNER JOIN APPROVAL APRV
+            ON APRV.APRV_LNKG_TBL_PK = CSTN.CSTN_NO
+           AND APRV.APRV_LNKG_CLSF = 'CONSULTATION'
+           AND APRV.APRV_TN = ( SELECT MAX (TMP.APRV_TN)
+                                  FROM APPROVAL TMP
+                                 WHERE TMP.APRV_LNKG_CLSF = APRV.APRV_LNKG_CLSF
+                                   AND TMP.APRV_LNKG_TBL_PK = APRV.APRV_LNKG_TBL_PK
+                            )
+
+    INNER JOIN MEMBER MBR
+            ON MBR.MEM_NO = CSTN.MEM_NO
+
+    INNER JOIN COMMON_CODE MEM_DEPT_CODE
+            ON MEM_DEPT_CODE.COMMON_CODE = 'MEM_DEPT'
+           AND MEM_DEPT_CODE.COMMON_CODE_KEY = CSTN.MEM_DEPT
+
+    INNER JOIN COMMON_CODE APRV_STAT_CODE
+            ON APRV_STAT_CODE.COMMON_CODE = 'APRV_STAT'
+           AND APRV_STAT_CODE.COMMON_CODE_KEY = APRV.APRV_STAT
+
+    INNER JOIN MEMBER REG_MBR
+            ON REG_MBR.MEM_NO = CSTN.REG_NO
+
+    INNER JOIN MEMBER MOD_MBR
+            ON MOD_MBR.MEM_NO = CSTN.MOD_NO
+
+     LEFT JOIN UPLOAD ULD
+            ON ULD.UPLOAD_CONNECT = CSTN.CSTN_NO
+           AND ULD.UPLOAD_TABLE = 'CONSULTATION'
+
+         WHERE CSTN.DEL_YN = 'N'
+         
+         <!-- 상신취소 및 결재완료 보이지 않기 -->
+           	AND APRV.APRV_STAT != 'AS03' 
+			AND APRV.APRV_STAT != 'AS05'
+    </sql>
+
+    <select id="selectList" resultType="nosMap">
+        <include refid="consultationQuery"/>
+      ORDER BY CSTN.CSTN_NO DESC
+    </select>
+
+    <select id="selectOne" resultType="nosMap">
+        <include refid="consultationQuery"/>
+           AND CSTN.CSTN_NO = #{cstnNo}
+    </select>
+</mapper>

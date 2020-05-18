@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+
+	<Appenders>
+		<Console name="console" target="SYSTEM_OUT">
+			<PatternLayout
+				pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+		</Console>
+		<!-- 최용규 -->
+		<appender name="fileLogger"
+			class="org.apache.log4j.DailyRollingFileAppender">
+			<param name="file" value="C:/logs/spring.log" />
+			<param name="Append" value="true" />
+			<param name="dataPattern" value=".yyyy-MM-dd" />
+			<layout class="org.apache.log4j.PatternLayout">
+				<param name="ConverstionPattern"
+					value="[%d{yyyy-MM-dd HH:mm:ss}] %-5p: %F:%L - %m%n" />
+			</layout>
+		</appender>
+	</Appenders>
+
+	<Loggers>
+		<!-- 최용규 -->
+		<logger name="com.nos.mm.util.scheduler" level="info"
+			additivity="false">
+			<AppenderRef ref="fileLogger" />
+		</logger>
+
+		<!-- 트랜잭션 돌아가는걸 볼 수 있음 -->
+		<logger name="org.mybatis" level="DEBUG" additivity="false">
+			<AppenderRef ref="console" />
+		</logger>
+		<!-- 뭐나오는지 모르겠음 -->
+		<logger name="java.sql" level="DEBUG" additivity="false">
+			<AppenderRef ref="console" />
+		</logger>
+		<!-- 디비 접속한거 -->
+		<logger name="com.nos.mm.mapper" level="DEBUG"
+			additivity="false">
+			<AppenderRef ref="console" />
+		</logger>
+
+		<!-- <logger name="com.nos.mm" level="all" additivity="false"> -->
+		<!-- <AppenderRef ref="console" /> -->
+		<!-- </logger> -->
+
+		<Root level="DEBUG">
+			<Appender-ref ref="console" />
+		</Root>
+	</Loggers>
+
+</Configuration>
